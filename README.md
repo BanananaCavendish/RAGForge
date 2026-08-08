@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">企业知识助手 RAG</h1>
-  <p align="center">基于 LangChain 1.x 的企业级 RAG 知识问答系统 · 简历项目</p>
+  <p align="center">基于 LangChain 1.x 的企业级 RAG 知识问答系统</p>
   <p align="center">
     <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
     <img alt="LangChain" src="https://img.shields.io/badge/LangChain-1.x-1C3C3C?logo=langchain&logoColor=white">
@@ -17,8 +17,6 @@
 
 一个**能跑、能量化、讲得清**的 RAG 企业知识助手:上传 PDF / Word / Markdown / HTML 文档,即可用自然语言问答,回答自动标注 `[1][2]` 来源引用,支持多轮对话上下文,并通过黄金问答集量化召回率与回答质量。
 
-> 设计目标:不只是"跑通",而是每一个环节都能在面试中讲清楚原理与取舍(混合检索为什么用 RRF、bi-encoder vs cross-encoder、增量更新如何保证幂等、LLM-as-judge 如何可控)。
-
 ## 目录
 
 - [特性](#特性)
@@ -29,8 +27,8 @@
 - [项目结构](#项目结构)
 - [配置项](#配置项)
 - [技术栈](#技术栈)
+- [与原始模板的差异](#与原始模板的差异)
 - [踩坑记录](#踩坑记录)
-- [面试准备](#面试准备)
 - [路线图](#路线图)
 
 ## 特性
@@ -189,9 +187,22 @@ flowchart LR
 | 重排(可选) | `bge-reranker-v2-m3`(cross-encoder) |
 | 前端 | 原生 JS 单页,无构建工具 |
 
-## 踩坑记录
+## 与原始模板的差异
 
-> 面试时讲这些,比背八股更能体现实战能力。
+本项目是在开源教程项目 **RAG From Zero**(无框架手写实现,配套 10 章教程)的基础上重构与扩展的。保留了原项目的核心设计思路——向量 + BM25 双路召回与 RRF 融合、cross-encoder 重排、查询改写、带引用生成——其余部分做了如下改动:
+
+| 方面 | 原始模板(RAG From Zero) | 本项目 |
+|---|---|---|
+| 技术框架 | 核心代码全手写,不依赖框架 | 基于 LangChain 1.x 组织检索链 / 记忆 / 调用 |
+| 向量库 | ChromaDB(本地持久化) | FAISS(`faiss-cpu`),解决 Windows 下 Chroma 段错误 |
+| 嵌入模型 | 本地 `bge-m3`(~2GB) | 阿里百炼 `qwen3.7-text-embedding`(API)或本地 `bge-small-zh-v1.5` |
+| 文档格式 | 仅 PDF(保险语料) | PDF / Word / Markdown / HTML(企业知识语料) |
+| 多轮对话 | 单轮问答 | 会话记忆 + LLM 查询改写,支持多轮上下文 |
+| 增量更新 | 只有全量建库 | 内容寻址 `doc_id` 幂等,增 / 删 / 替换文档不重建全量索引 |
+| 评估体系 | 冒烟测试(验证装配逻辑) | golden QA + recall@k / MRR / 忠实度 / 引用准确率,输出报告 |
+| 接口形态 | 命令行脚本 | FastAPI REST API + Web 聊天界面 |
+
+## 踩坑记录
 
 1. **中文 BM25 必须 jieba 预分词**——`rank_bm25` 按空白切分,中文整句无空格会被当成一个 token,BM25 直接失效。
 2. **RRF 用排名不用分数**——向量距离与 BM25 分数量纲/分布不同,直接加权不可比;`1/(60+rank)` 只看名次。
@@ -203,14 +214,6 @@ flowchart LR
 8. **torch 别乱升**——Windows + Anaconda 下 torch 2.13 启动即 `WinError 1114`,固定 `torch==2.6.0`;CPU 环境 `OMP_NUM_THREADS=1` 防多进程内存爆炸。
 9. **Windows 控制台是 GBK**——打印中文/emoji 报 `UnicodeEncodeError`,脚本开头 `sys.stdout.reconfigure(encoding="utf-8")`;管道喂中文还要同步 reconfigure stdin。
 10. **换嵌入必须重建索引**——不同嵌入模型维度/语义空间不同,旧 FAISS 索引作废,先删 `data/chroma data/registry` 再 `build_index.py`。
-
-## 面试准备
-
-- **为什么混合检索?** 向量抓语义、BM25 抓精确词(政策编号、数字、专有名词),互补。
-- **为什么还要重排?** bi-encoder 可预计算但精度低;cross-encoder 逐对精打精度高但贵,所以只做精排(top-10 → top-4)。
-- **多轮怎么处理?** LLM 依据历史改写最后一句,再进混合检索;历史截断最近 6 条。刻意不用 `RunnableWithMessageHistory`,自己管 `session_store` 更透明。
-- **增量更新怎么做?** manifest 是真相源,内容寻址 `doc_id` 保幂等;FAISS 删文档 = 过滤 chunk 后重建,BM25 同步重建。
-- **忠实度 vs 引用准确率?** 前者判整体是否被支持,后者逐条判 `[i]` 是否真支撑那句陈述。
 
 ## 路线图
 

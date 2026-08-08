@@ -6,7 +6,7 @@
   build_history_aware        RunnableLambda 用 LLM 把带上下文的最后一句改写成独立查询,
                              再进上面整条链(官方 create_history_aware_retriever 已在 1.x 移除)
 
-面试讲解要点:
+关键设计:
   - RRF 只看「名次」不看「分数」:向量距离与 BM25 分数量纲/分布不同,直接加权不可比;
     1/(60+rank) 让两路贡献均衡,60 是业界经验常数。
   - 中文 BM25 必须 jieba 预分词:rank_bm25 按空白切分,中文整句无空格会被当成一个 token。
@@ -134,7 +134,7 @@ class RerankRetriever(BaseRetriever):
     """混合检索(top-k 粗召回)→ cross-encoder 精排(到 top-K)。
 
     为什么不直接用 LangChain 的 ContextualCompressionRetriever?
-    它在 LangChain 1.x 已移除;且手写 wrapper 逻辑透明,面试更好讲:
+    它在 LangChain 1.x 已移除;且手写 wrapper 逻辑更透明:
       bi-encoder(向量)可预计算但精度低 → 做召回;
       cross-encoder 逐对精打、精度高但贵 → 只做精排。
     """
