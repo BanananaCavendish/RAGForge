@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>晨光科技 · 企业知识助手</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --sidebar: #1e2430; --sidebar-txt: #c9d1d9;
+    --accent: #2f6fed; --accent-soft: #eaf1ff; --text: #24292f; --muted: #6e7781;
+    --border: #e3e6ea; --user: #2f6fed; --assistant: #ffffff;
+    --radius: 10px; --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); display: flex; overflow: hidden;
+  }
+
+  /* ── 侧边栏 ─────────────────────────────── */
+  aside {
+    width: 300px; min-width: 300px; background: var(--sidebar); color: var(--sidebar-txt);
+    display: flex; flex-direction: column; padding: 18px 16px; overflow-y: auto;
+  }
+  aside h1 { font-size: 17px; color: #fff; margin-bottom: 2px; }
+  aside .sub { font-size: 12px; color: #8b949e; margin-bottom: 18px; }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #8b949e; margin: 14px 0 8px; }
+  .doc-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px;
+    background: rgba(255,255,255,.04); margin-bottom: 6px; font-size: 13px;
+  }
+  .doc-item .fmt { font-family: var(--mono); font-size: 10px; background: rgba(255,255,255,.12); padding: 2px 6px; border-radius: 4px; color: #8b949e; }
+  .doc-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-item button {
+    background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; line-height: 1;
+  }
+  .doc-item button:hover { color: #f85149; }
+  .empty { color: #8b949e; font-size: 12px; padding: 8px 2px; }
+  #uploadBtn {
+    margin-top: 14px; padding: 9px; border: 1px dashed rgba(255,255,255,.25); border-radius: 6px;
+    background: none; color: #c9d1d9; cursor: pointer; font-size: 13px;
+  }
+  #uploadBtn:hover { border-color: var(--accent); color: #fff; }
+  #uploadInput { display: none; }
+  .tip { margin-top: auto; padding-top: 16px; font-size: 11px; color: #6e7781; line-height: 1.6; }
+
+  /* ── 主区 ─────────────────────────────── */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages { flex: 1; overflow-y: auto; padding: 24px 5vw; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 720px; width: fit-content; border-radius: var(--radius); padding: 14px 16px; line-height: 1.7; font-size: 14.5px; }
+  .msg.user { align-self: flex-end; background: var(--user); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+  .msg.assistant { align-self: flex-start; background: var(--assistant); border: 1px solid var(--border); border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .msg.assistant .sources {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
+  }
+  .msg.assistant .sources .src { display: flex; gap: 6px; margin-top: 4px; align-items: baseline; }
+  .msg.assistant .sources .src .idx { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  .msg.assistant .sources .src .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .typing { color: var(--muted); font-size: 14px; }
+
+  /* ── 输入栏 ───────────────────────────── */
+  .composer { border-top: 1px solid var(--border); background: var(--panel); padding: 16px 5vw; }
+  .composer-inner { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; }
+  #input {
+    flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14.5px; font-family: inherit; outline: none; resize: none; max-height: 120px;
+  }
+  #input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  #send {
+    padding: 0 22px; border: none; border-radius: 8px; background: var(--accent); color: #fff;
+    font-size: 14.5px; cursor: pointer; font-family: inherit;
+  }
+  #send:disabled { opacity: .5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<aside>
+  <h1>晨光科技 · 企业知识助手</h1>
+  <div class="sub">RAG · 混合检索 · 带引用多轮对话</div>
+  <h2>知识库文档</h2>
+  <div id="docList"><div class="empty">加载中…</div></div>
+  <button id="uploadBtn">＋ 上传文档(PDF / Word / MD / HTML)</button>
+  <input type="file" id="uploadInput" multiple />
+  <div class="tip">
+    上传/删除文档后索引实时更新(增量,无需全量重建)。<br/>
+    支持 .pdf .docx .md .html .txt
+  </div>
+</aside>
+
+<main>
+  <div id="messages"></div>
+  <div class="composer">
+    <div class="composer-inner">
+      <textarea id="input" rows="1" placeholder="输入问题，例如：出差报销需要准备哪些材料？"></textarea>
+      <button id="send">发送</button>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SESSION_KEY = "rag_session_id";
+const sessionId = (() => {
+  let s = localStorage.getItem(SESSION_KEY);
+  if (!s) { s = "web-" + Date.now(); localStorage.setItem(SESSION_KEY, s); }
+  return s;
+})();
+
+const messagesEl = $("messages");
+const inputEl = $("input");
+const sendBtn = $("send");
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function addMessage(role, text, sources) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = esc(text);
+  if (role === "assistant" && sources && sources.length) {
+    const box = document.createElement("div");
+    box.className = "sources";
+    box.innerHTML = "<div style='font-weight:600;margin-bottom:4px'>📎 引用来源</div>";
+    sources.forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "src";
+      const path = s.retrieved_by ? " · " + s.retrieved_by.join("+") : "";
+      row.innerHTML = `<span class="idx">[${i + 1}]</span><span class="file">${esc(s.source)}${path}</span>`;
+      box.appendChild(row);
+    });
+    div.appendChild(box);
+  }
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addTyping() {
+  const div = document.createElement("div");
+  div.className = "msg assistant typing";
+  div.textContent = "正在检索知识库…";
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+async function send() {
+  const question = inputEl.value.trim();
+  if (!question || sendBtn.disabled) return;
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  addMessage("user", question);
+  sendBtn.disabled = true;
+  const typing = addTyping();
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, session_id: sessionId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "请求失败");
+    typing.remove();
+    addMessage("assistant", data.answer, data.sources);
+  } catch (err) {
+    typing.remove();
+    addMessage("assistant", "⚠️ 出错了：" + err.message + "\n\n请确认后端已启动、DeepSeek key 已配置。");
+  } finally {
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+}
+
+// ── 文档管理 ─────────────────────────────
+async function loadDocs() {
+  try {
+    const res = await fetch("/api/documents");
+    const data = await res.json();
+    renderDocs(data.documents || []);
+  } catch {
+    $("docList").innerHTML = '<div class="empty">后端未连接</div>';
+  }
+}
+
+function renderDocs(docs) {
+  if (!docs.length) { $("docList").innerHTML = '<div class="empty">知识库为空，上传文档开始</div>'; return; }
+  $("docList").innerHTML = "";
+  docs.forEach((d) => {
+    const item = document.createElement("div");
+    item.className = "doc-item";
+    item.innerHTML = `
+      <span class="fmt">${esc(d.fmt)}</span>
+      <span class="name" title="${esc(d.filename)} · ${d.num_chunks} 片段">${esc(d.filename)}</span>
+      <button title="删除 ${esc(d.filename)}">✕</button>`;
+    item.querySelector("button").onclick = async () => {
+      if (!confirm(`删除 ${d.filename} ?`)) return;
+      await fetch(`/api/documents/${d.doc_id}`, { method: "DELETE" });
+      loadDocs();
+    };
+    $("docList").appendChild(item);
+  });
+}
+
+$("send").onclick = send;
+inputEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+});
+
+$("uploadBtn").onclick = () => $("uploadInput").click();
+$("uploadInput").onchange = async (e) => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  for (const f of files) {
+    const fd = new FormData();
+    fd.append("file", f);
+    await fetch("/api/documents", { method: "POST", body: fd });
+  }
+  e.target.value = "";
+  loadDocs();
+};
+
+loadDocs();
+addMessage("assistant", "你好！我是晨光科技的企业知识助手。\n\n可以问我员工手册、差旅报销、云文档使用、安全制度等问题，回答会标注引用来源。");
+</script>
+</body>
+</html>
