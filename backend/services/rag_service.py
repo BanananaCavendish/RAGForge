@@ -43,7 +43,7 @@ class RAGService:
     # ------------------------------------------------------------------
 
     def answer(self, session_id: str, question: str) -> dict:
-        history = session_store.history_for(session_id)
+        history = session_store.store.history_for(session_id)
         docs = self.history_aware.invoke({"input": question, "chat_history": history})
 
         if not docs:
@@ -52,7 +52,7 @@ class RAGService:
                 "sources": [],
                 "context": "",
             }
-            session_store.append(session_id, question, result["answer"])
+            session_store.store.append(session_id, question, result["answer"])
             return result
 
         context = "\n\n".join(
@@ -65,7 +65,7 @@ class RAGService:
         )
         answer = response.content if isinstance(response.content, str) else str(response.content)
 
-        session_store.append(session_id, question, answer)
+        session_store.store.append(session_id, question, answer)
         return {
             "answer": answer,
             "context": context,

@@ -7,7 +7,7 @@ flowchart LR
     subgraph 接入侧[Ingestion · 增量更新]
         A[多格式文档<br/>PDF / Word / MD / HTML] --> B[Loader 分派]
         B --> C[中文感知分块<br/>句读优先 + overlap]
-        C --> D[(Chroma 向量库)]
+        C --> D[(FAISS 向量库)]
         D --> E[Manifest 注册表<br/>doc_id → 文件信息]
         C --> F[BM25 内存索引<br/>jieba 分词]
     end
@@ -50,10 +50,10 @@ flowchart LR
 
 1. `POST /api/chat {session_id, question}`
 2. `rag_service.answer()` 取该会话最近 6 条消息
-3. `create_history_aware_retriever` 用 LLM 把最后一句改写成独立查询
-4. 改写后的查询同时进向量路(Chroma)与关键词路(BM25, jieba 分词)
+3. 若有历史,`RunnableLambda` 用 LLM(CONDENSE_PROMPT)把最后一句改写成独立查询(官方 `create_history_aware_retriever` 已在 LangChain 1.x 移除,自己包一层更透明)
+4. 改写后的查询同时进向量路(FAISS)与关键词路(BM25, jieba 分词)
 5. 两条路各取 top-10,手写 RRF 融合:`score = Σ 1/(60 + rank)`
-6. 融合后 top-10 交给 cross-encoder 精排到 top-4
+6. 融合后 top-10 交给 cross-encoder 精排到 top-4(可选,`USE_RERANK=0` 时跳过)
 7. 带引用生成:上下文按 `[1][2]…` 编号,LLM 必须标注来源
 8. 回答与来源写回会话记忆,返回前端
 

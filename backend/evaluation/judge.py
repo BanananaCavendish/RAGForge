@@ -18,6 +18,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel, Field
 
+from backend.core import config
 from backend.services.llm import get_judge_llm
 
 logger = logging.getLogger(__name__)
@@ -82,18 +83,25 @@ class CitationVerdict(BaseModel):
 
 
 def _structured_or_json(model_cls: type[T], prompt: str) -> T:
-    """优先 with_structured_output;失败时从文本里抽 JSON 兜底。"""
+    """优先 with_structured_output;失败时从文本里抽 JSON 兜底。
+
+    DeepSeek 不支持 OpenAI 的 response_format=json_schema,直接走 JSON 路径,
+    避免每次 judge 白费一次 API 调用。
+    """
     llm = get_judge_llm()
-    try:
-        chain = llm.with_structured_output(model_cls)
-        return chain.invoke(prompt)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("structured output 失败(%s),走 JSON 兜底", e)
-        text = llm.invoke(prompt).content
-        m = re.search(r"\{.*\}", text, re.DOTALL)
-        if not m:
-            raise ValueError(f"无法从 judge 输出解析 JSON: {text[:200]}") from e
-        return model_cls.model_validate_json(m.group(0))
+    is_deepseek = "deepseek" in config.DEEPSEEK_BASE_URL or "deepseek" in config.LLM_MODEL
+    if not is_deepseek:
+        try:
+            chain = llm.with_structured_output(model_cls)
+            return chain.invoke(prompt)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("structured output 失败(%s),走 JSON 兜底", e)
+
+    text = llm.invoke(prompt).content
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        raise ValueError(f"无法从 judge 输出解析 JSON: {text[:200]}")
+    return model_cls.model_validate_json(m.group(0))
 
 
 def judge_faithful(context: str, answer: str) -> FaithfulnessVerdict:

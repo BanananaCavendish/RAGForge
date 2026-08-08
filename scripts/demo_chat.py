@@ -10,9 +10,12 @@
 import sys
 from pathlib import Path
 
-# Windows 控制台默认 GBK,打印 emoji/生僻字会崩;统一重配置为 UTF-8
+# Windows 控制台默认 GBK:stdout 打印 emoji/生僻字会崩,stdin 读 UTF-8 管道会乱码;
+# 统一把输入输出都重配置为 UTF-8(用管道喂中文问题也必须设 stdin)。
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stdin, "reconfigure"):
+    sys.stdin.reconfigure(encoding="utf-8")
 
 # 让脚本无论从哪个目录运行都能 import backend
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

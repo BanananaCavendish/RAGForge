@@ -1,9 +1,10 @@
 """检索层:混合检索(RRF)+ cross-encoder 重排 + 多轮改写,三件套。
 
 分层:
-  HybridRetriever            向量(Chroma)+ BM25 双路召回,手写 RRF 融合
-  ContextualCompression      CrossEncoderReranker 把 top-N 精排到 top-K
-  create_history_aware       用 LLM 把带上下文的最后一句改写成独立查询,再进上面整条链
+  HybridRetriever            向量(FAISS)+ BM25 双路召回,手写 RRF 融合
+  RerankRetriever            cross-encoder 把 top-N 精排到 top-K
+  build_history_aware        RunnableLambda 用 LLM 把带上下文的最后一句改写成独立查询,
+                             再进上面整条链(官方 create_history_aware_retriever 已在 1.x 移除)
 
 面试讲解要点:
   - RRF 只看「名次」不看「分数」:向量距离与 BM25 分数量纲/分布不同,直接加权不可比;
@@ -17,7 +18,7 @@ import logging
 import jieba
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 from rank_bm25 import BM25Okapi
 
 from backend.core import config
@@ -37,7 +38,7 @@ class HybridRetriever(BaseRetriever):
     BM25 在内存里对这些 chunk 拟合。
     """
 
-    vectorstore: object          # langchain_chroma.Chroma
+    vectorstore: object          # langchain_community.vectorstores.FAISS
     bm25: object                 # rank_bm25.BM25Okapi
     corpus: list[Document]
     k: int = config.RETRIEVE_TOP_N
@@ -181,35 +182,34 @@ CONDENSE_PROMPT = """根据上面的对话历史,把最后一条用户提问改�
 问题:{input}"""
 
 
-def _import_create_history_aware_retriever():
-    """跨版本导入 create_history_aware_retriever(1.x 收敛到 langchain.chains)。"""
-    try:
-        from langchain.chains import create_history_aware_retriever
-        return create_history_aware_retriever
-    except ImportError:
-        from langchain.chains.history_aware_retriever import (
-            create_history_aware_retriever,
-        )
-        return create_history_aware_retriever
-
-
 def build_history_aware_retriever(retriever: BaseRetriever, llm) -> Runnable:
     """把 retriever(已含混合检索+重排)包成多轮对话检索器。
 
     invoke({"input": question, "chat_history": history})
-    → LLM 改写 → 双路召回 → RRF 融合 → cross-encoder 精排 → 返回 top 文档。
+    → (若有历史)LLM 改写 → 双路召回 → RRF 融合 → cross-encoder 精排 → 返回 top 文档。
+
+    为什么不用官方 create_history_aware_retriever?它在 LangChain 1.x 已被移除
+    (langchain.chains / langchain.retrievers 顶层模块都不存在了),且包装一层官方组件
+    反而不好讲实现。这里显式用 RunnableLambda 包「改写→检索」两步,逻辑完全透明。
     """
+    from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-    create_history_aware_retriever = _import_create_history_aware_retriever()
     prompt = ChatPromptTemplate.from_messages(
         [
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", CONDENSE_PROMPT),
         ]
     )
-    return create_history_aware_retriever(
-        llm=llm,
-        retriever=retriever,
-        prompt=prompt,
-    )
+    condense_chain = prompt | llm | StrOutputParser()
+
+    def _condense_and_retrieve(inputs: dict) -> list[Document]:
+        question, history = inputs["input"], inputs["chat_history"]
+        if history:  # 有历史才改写;首轮直接检索原句
+            question = condense_chain.invoke(
+                {"input": question, "chat_history": history}
+            )
+            logger.info("改写后查询: %s", question)
+        return retriever.invoke(question)
+
+    return RunnableLambda(_condense_and_retrieve)

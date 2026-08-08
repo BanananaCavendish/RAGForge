@@ -1,17 +1,15 @@
 # ============ LangChain 1.x 系列 ============
-# 注意:langchain / core / openai / chroma / text-splitters 升到 1.x;
+# 注意:langchain / core / openai / text-splitters 升到 1.x;
 #     langchain-community 保持 0.3.x(官方不升 1.0)。
-# 版本差异见 README 中的「LangChain 0.3 vs 1.x」对照表。
 langchain>=1.0,<2
 langchain-core>=1.0,<2
 langchain-openai>=1.0,<2
-langchain-chroma>=1.0,<2
 langchain-community>=0.3.15,<0.4
 langchain-text-splitters>=1.0,<2
 
 # ============ LLM / 向量 / 检索 ============
 openai>=1.40              # langchain-openai 依赖;DeepSeek 走 OpenAI 兼容接口
-chromadb>=0.5,<2
+faiss-cpu>=1.8.0          # 向量库(Chroma 在 Windows+Anaconda 段错误,见 README 坑#4)
 sentence-transformers>=3.0
 # 注意:torch 2.13+ 在 Anaconda Python 下有 DLL 加载失败问题(WinError 1114),
 # 本项目锁定 2.6.0(已验证可用)。升级前先在 Windows 上跑通 import torch。

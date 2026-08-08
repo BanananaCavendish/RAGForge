@@ -23,7 +23,7 @@ except ModuleNotFoundError:
 DATA_DIR = PROJECT_ROOT / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 GOLDEN_DIR = DATA_DIR / "golden"
-CHROMA_DIR = DATA_DIR / "chroma"
+CHROMA_DIR = DATA_DIR / "chroma"  # 目录沿用旧名,实际存 FAISS 索引(派生产物)
 REGISTRY_DIR = DATA_DIR / "registry"
 SESSION_DIR = DATA_DIR / "sessions"
 EVAL_DIR = DATA_DIR / "eval"
@@ -37,8 +37,16 @@ LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 
 # ─── 模型 ─────────────────────────────────────────────────────────
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
+# 嵌入:api = 阿里百炼 DashScope(OpenAI 兼容),local = 本地 BGE
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "api").lower()
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "qwen3.7-text-embedding")
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+
+# 阿里百炼 DashScope(OpenAI 兼容接口)
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
+DASHSCOPE_BASE_URL = os.getenv(
+    "DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+)
 
 # ─── 切分 / 检索 / 重排默认值 ────────────────────────────────────
 CHUNK_SIZE = 400
