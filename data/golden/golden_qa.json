@@ -14,8 +14,8 @@
   {
     "id": "q03",
     "question": "差旅报销审核通过后多久能到账?",
-    "expected_files": ["travel_reimbursement.pdf"],
-    "golden_answer": "审核通过后 15 个工作日内到账;提交报销申请需在出差结束后 3 个工作日内完成。"
+    "expected_files": ["travel_reimbursement.pdf", "reimbursement_faq.md"],
+    "golden_answer": "制度规定审核通过后 15 个工作日内到账;财务问答补充一般 10 个工作日、跨行转账最长 15 个工作日。提交报销申请需在出差结束后 3 个工作日内完成。"
   },
   {
     "id": "q04",
@@ -50,14 +50,14 @@
   {
     "id": "q09",
     "question": "怎么重置企业账号密码?",
-    "expected_files": ["faq.html"],
-    "golden_answer": "在门户登录页点「忘记密码」,输入绑定的企业邮箱或手机号,通过 30 分钟内有效的重置链接修改密码。"
+    "expected_files": ["faq.html", "it_support.md"],
+    "golden_answer": "FAQ 说明在门户登录页点「忘记密码」,输入绑定的企业邮箱或手机号,通过 30 分钟内有效的重置链接修改密码;IT 指南补充还可联系 IT 服务台重置,临时密码 24 小时内有效、首次登录强制修改。"
   },
   {
     "id": "q10",
     "question": "申请 VPN 有什么要求?",
-    "expected_files": ["faq.html"],
-    "golden_answer": "在 IT 服务台提交 VPN 申请,注明用途与使用期限,审批通过后发放一次性激活码,一个激活码仅限一人使用,禁止共享。"
+    "expected_files": ["faq.html", "it_support.md"],
+    "golden_answer": "在 IT 服务台提交 VPN 申请,注明用途与使用期限;FAQ 与 IT 指南均说明审批通过后发放一次性激活码、仅限本人使用禁止共享,IT 指南补充需部门负责人与 IT 双重审批(约 2 个工作日)。"
   },
   {
     "id": "q11",
@@ -86,7 +86,91 @@
   {
     "id": "q15",
     "question": "加班费怎么算?",
-    "expected_files": ["employee_handbook.md"],
-    "golden_answer": "工作日加班可申请等时调休,周末加班按劳动法支付加班费;加班需提前填写加班审批单。"
+    "expected_files": ["employee_handbook.md", "faq.html", "attendance_policy.md"],
+    "golden_answer": "手册与 FAQ 均规定:工作日加班可申请等时调休、周末加班按劳动法支付加班费,加班需提前填写加班审批单;考勤办法补充加班费以考勤打卡记录为准核发,无打卡记录的不予计算。"
+  },
+  {
+    "id": "q16",
+    "question": "报销需要提供什么发票?发票有什么要求?",
+    "expected_files": ["travel_reimbursement.pdf", "reimbursement_faq.md"],
+    "golden_answer": "制度要求提供合规的增值税发票并附行程/车票等凭证;财务问答补充:增值税专用发票与普通发票均可,电子发票须打印为 A4 纸并附查验水印,个人抬头的打车票、餐费发票不可报销。"
+  },
+  {
+    "id": "q17",
+    "question": "VPN 远程办公怎么申请?多久能开通?",
+    "expected_files": ["faq.html", "it_support.md"],
+    "golden_answer": "在 IT 服务台提交 VPN 申请,注明用途与使用期限;FAQ 与 IT 指南均说明审批通过后发放一次性激活码,IT 指南补充约需 2 个工作日双重审批,激活码仅限本人使用、禁止共享。"
+  },
+  {
+    "id": "q18",
+    "question": "试用期多久可以转正?转正要经过什么评估?",
+    "expected_files": ["employee_handbook.md", "performance_review.md"],
+    "golden_answer": "员工手册规定试用期 3 个月,表现优秀可提前转正但不短于 1 个月;绩效制度补充试用期满前一周参加转正评估,由部门负责人与导师共同评价,通过后才转为正式员工。"
+  },
+  {
+    "id": "q19",
+    "question": "公司出差住宿报销标准是多少?境内外一样吗?",
+    "expected_files": ["travel_reimbursement.pdf", "overseas_travel.md"],
+    "golden_answer": "境内外标准不同:境内一线城市(北上广深)每晚 500 元、其他城市 350 元;境外一线国际城市每晚 800 元、其他境外城市 600 元,超出部分自理或需特别审批。"
+  },
+  {
+    "id": "q20",
+    "question": "公司上班打卡最晚几点?迟到多久算旷工?",
+    "expected_files": ["attendance_policy.md"],
+    "golden_answer": "最晚上班打卡为 8:45(8:30 上班,允许 15 分钟弹性),迟到 30 分钟以上按旷工半天处理;当月累计迟到 3 次以上考勤评分扣减。"
+  },
+  {
+    "id": "q21",
+    "question": "出差打车费用能报销吗?每天上限多少?",
+    "expected_files": ["travel_reimbursement.pdf"],
+    "golden_answer": "市内交通(地铁、公交、打车)可报销,合计每日上限 100 元;个人抬头的打车票不作为合规发票受理。"
+  },
+  {
+    "id": "q22",
+    "question": "境外出差的住宿标准是多少钱一晚?",
+    "expected_files": ["overseas_travel.md"],
+    "golden_answer": "境外出差住宿按城市类别执行:一线国际城市(纽约、伦敦、东京、新加坡等)每晚 800 元,其他境外城市每晚 600 元,超出部分自理或需提前特别审批。"
+  },
+  {
+    "id": "q23",
+    "question": "公司一年做几次绩效评估?绩效分哪几个等级?",
+    "expected_files": ["performance_review.md"],
+    "golden_answer": "实行半年度绩效考核,每年 1 月与 7 月各一次,年度总评由两次综合得出;等级分五档:S/A/B/C/D,占比 10%/20%/50%/15%/5%。"
+  },
+  {
+    "id": "q24",
+    "question": "电脑蓝屏或者网络不通应该找谁处理?",
+    "expected_files": ["it_support.md"],
+    "golden_answer": "联系 IT 服务台提交工单:网络不通先检查网线/WiFi 并重启路由器,蓝屏记录错误代码后提交工单,按工单编号先后处理。"
+  },
+  {
+    "id": "q25",
+    "question": "当月累计迟到几次会影响考勤评分?",
+    "expected_files": ["attendance_policy.md"],
+    "golden_answer": "当月累计迟到 3 次以上,考勤评分扣减;单次迟到 30 分钟以上按旷工半天处理。"
+  },
+  {
+    "id": "q26",
+    "question": "去国外出差要办什么手续?",
+    "expected_files": ["overseas_travel.md"],
+    "golden_answer": "境外出差须提前 15 个工作日提交申请、经部门负责人与总经理两级审批,并购买境外商务旅行保险;护照有效期需在 6 个月以上,签证由行政部统一代办,保险单据随报销材料提交。"
+  },
+  {
+    "id": "q27",
+    "question": "公司企业邮箱怎么开通?",
+    "expected_files": ["faq.html", "it_support.md"],
+    "golden_answer": "FAQ 说明向部门主管申请、由行政部统一开通,工号为账号前缀、初始密码为身份证后六位;IT 指南补充通过 IT 服务台申请,首次登录须改密并绑定手机号开启两步验证。"
+  },
+  {
+    "id": "q28",
+    "question": "公司对软件安装有什么规定?",
+    "expected_files": ["it_support.md"],
+    "golden_answer": "通过 IT 服务台提交软件安装申请并注明名称与用途,IT 审核版权与安全风险后远程安装;个人不得私自安装未经审批的软件。"
+  },
+  {
+    "id": "q29",
+    "question": "公司密码多久要换一次?",
+    "expected_files": ["security_policy.md"],
+    "golden_answer": "公司口令每 90 天必须更换一次,不得与历史 5 次口令重复;注意这里指账号口令(密码),与 FAQ 中「忘记密码重置」是两回事。"
   }
 ]

@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 
 class HybridRetriever(BaseRetriever):
-    """向量(Chroma)+ BM25 双路召回,手写 RRF 融合。
+    """向量(FAISS)+ BM25 双路召回,手写 RRF 融合。
 
-    corpus 必须是 Chroma 里全量 chunk 的镜像(由 IndexManager 维护),
+    corpus 必须是 FAISS 里全量 chunk 的镜像(由 IndexManager 维护),
     BM25 在内存里对这些 chunk 拟合。
     """
 
@@ -52,6 +52,8 @@ class HybridRetriever(BaseRetriever):
 
     def _vector_rank(self, query: str, k: int | None = None) -> list[Document]:
         k = k or self.k
+        if self.vectorstore is None:  # 空知识库守卫:双路都空 → RRF 融合得空列表,不抛异常
+            return []
         scored = self.vectorstore.similarity_search_with_score(query, k=k)
         return [doc for doc, _ in scored]
 
@@ -90,7 +92,8 @@ class HybridRetriever(BaseRetriever):
         for key, score in fused:
             d = docs[key]
             d.metadata["rrf_score"] = round(score, 4)
-            d.metadata["retrieved_by"] = sorted(hits[key])
+            # 按管线顺序(vector 在前)而非字母序,前端展示更自然
+            d.metadata["retrieved_by"] = [s for s in sources if s in hits[key]]
             out.append(d)
         return out
 
@@ -105,38 +108,35 @@ def build_hybrid_retriever(manager, k: int = config.RETRIEVE_TOP_N) -> HybridRet
     )
 
 
+class _EmptyRetriever(BaseRetriever):
+    """空库占位检索器:知识库为空时返回空结果,避免调用方崩在 None 上。"""
+
+    def _get_relevant_documents(self, query: str) -> list[Document]:
+        return []
+
+
 def build_vector_retriever(manager, k: int = config.RETRIEVE_TOP_N) -> BaseRetriever:
-    """纯向量检索器(评估消融用,对比混合检索的增益)。"""
+    """纯向量检索器(评估消融用,对比混合检索的增益)。空库返回空检索器。"""
+    if manager.vectorstore is None:
+        return _EmptyRetriever()
     return manager.vectorstore.as_retriever(search_kwargs={"k": k})
 
 
 # =====================================================================
-# cross-encoder 重排(手写,RAG 链路核心之一)
+# 重排(手写,RAG 链路核心之一)
 # =====================================================================
-
-_reranker_singleton = None
-
-
-def _get_reranker():
-    """cross-encoder 模型单例:构造时加载 ~560MB,不能每次请求重建。"""
-    global _reranker_singleton
-    if _reranker_singleton is None:
-        from sentence_transformers import CrossEncoder
-
-        logger.info("加载重排模型: %s (首次运行需下载 ~560MB)", config.RERANKER_MODEL)
-        _reranker_singleton = CrossEncoder(
-            config.RERANKER_MODEL, device="cpu"
-        )
-    return _reranker_singleton
 
 
 class RerankRetriever(BaseRetriever):
-    """混合检索(top-k 粗召回)→ cross-encoder 精排(到 top-K)。
+    """混合检索(top-k 粗召回)→ 重排器精排(到 top-K)。
 
-    为什么不直接用 LangChain 的 ContextualCompressionRetriever?
+    为什么不用 LangChain 的 ContextualCompressionRetriever?
     它在 LangChain 1.x 已移除;且手写 wrapper 逻辑更透明:
       bi-encoder(向量)可预计算但精度低 → 做召回;
       cross-encoder 逐对精打、精度高但贵 → 只做精排。
+
+    优雅降级:重排器(API/本地)故障时记 warning 并按混合检索原序返回,
+    重排问题绝不拖垮对话。
     """
 
     base: BaseRetriever
@@ -147,8 +147,13 @@ class RerankRetriever(BaseRetriever):
         if not docs:
             return []
 
-        # (query, doc) 逐对打分,cross-encoder 精度高但只能精排
-        scores = _get_reranker().predict([(query, d.page_content) for d in docs])
+        try:
+            from backend.services.reranker import get_reranker
+
+            scores = get_reranker().rank(query, [d.page_content for d in docs])
+        except Exception as e:  # noqa: BLE001 —— 重排故障降级
+            logger.warning("重排器调用失败,按混合检索原序返回: %s", e)
+            return docs[: self.top_k]
 
         ranked = sorted(
             zip(docs, scores), key=lambda x: x[1], reverse=True
@@ -164,9 +169,14 @@ class RerankRetriever(BaseRetriever):
 def build_reranked_retriever(
     manager, top_k: int = config.RERANK_TOP_K, k: int = config.RETRIEVE_TOP_N
 ) -> BaseRetriever:
-    """混合检索(top-k 粗召回)→ cross-encoder 精排(到 top-K)。"""
+    """混合检索(top-k 粗召回)→ cross-encoder 精排(到 top-K)。
+
+    是否启用重排读运行时设置(前端「设置」页可改),不再读启动时的 env 常量。
+    """
+    from backend.core import settings
+
     hybrid = build_hybrid_retriever(manager, k=k)
-    if not config.USE_RERANK:
+    if not settings.load_settings().rerank.enabled:
         return hybrid
     return RerankRetriever(base=hybrid, top_k=top_k)
 
@@ -174,13 +184,6 @@ def build_reranked_retriever(
 # =====================================================================
 # 多轮查询改写
 # =====================================================================
-
-# 注意:chat_history 由 MessagesPlaceholder 渲染为消息列表,模板文本里不要引用 {chat_history}
-CONDENSE_PROMPT = """根据上面的对话历史,把最后一条用户提问改写成一个独立、自包含、适合检索的搜索查询。
-只输出改写后的查询本身,不要任何解释。若历史与问题无关,原样返回问题。
-
-问题:{input}"""
-
 
 def build_history_aware_retriever(retriever: BaseRetriever, llm) -> Runnable:
     """把 retriever(已含混合检索+重排)包成多轮对话检索器。
@@ -194,6 +197,8 @@ def build_history_aware_retriever(retriever: BaseRetriever, llm) -> Runnable:
     """
     from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+    from backend.services.prompts import CONDENSE_PROMPT
 
     prompt = ChatPromptTemplate.from_messages(
         [

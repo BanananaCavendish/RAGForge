@@ -23,7 +23,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-from backend.core import config
+from backend.core import config, settings
 from backend.evaluation.judge import judge_citations, judge_faithful
 from backend.evaluation.metrics import RetrievalScores, dedupe_doc_ids
 from backend.services.rag_service import get_service
@@ -32,6 +32,15 @@ from backend.services.retrieval import (
     build_reranked_retriever,
     build_vector_retriever,
 )
+
+
+def _require_llm_key() -> None:
+    """按运行时设置检查 LLM key(面板配置优先,不只看 .env)。"""
+    if not settings.load_settings().llm.api_key:
+        raise ValueError(
+            "❌ 缺少 LLM API Key\n"
+            "   请在网页「设置」页填入,或写入 .env 的 DEEPSEEK_API_KEY"
+        )
 
 STRATEGIES = ("vector", "hybrid", "hybrid+rerank")
 
@@ -47,7 +56,7 @@ def main() -> None:
     parser.add_argument("--skip-generation", action="store_true", help="跳过 LLM 生成与判分")
     args = parser.parse_args()
 
-    config.validate_config()
+    _require_llm_key()
     golden = load_golden()
     if args.limit:
         golden = golden[: args.limit]
@@ -87,11 +96,14 @@ def main() -> None:
     for name in STRATEGIES:
         rows.append({**scores[name].finalize(len(golden)), "strategy": name})
     print("### 检索消融(文档级 recall@k / MRR)")
-    header = ["strategy", "recall@3", "recall@5", "recall@10", "mrr"]
+    header = ["strategy", "recall@1", "recall@3", "recall@5", "recall@10", "mrr"]
     print("| " + " | ".join(header) + " |")
     print("|" + "---|" * len(header))
     for r in rows:
-        print(f"| {r['strategy']} | {r['recall@3']} | {r['recall@5']} | {r['recall@10']} | {r['mrr']} |")
+        print(
+            f"| {r['strategy']} | {r['recall@1']} | {r['recall@3']} "
+            f"| {r['recall@5']} | {r['recall@10']} | {r['mrr']} |"
+        )
 
     # ── 生成质量(LLM-as-judge)────────────────────────────────────
     gen_report = None

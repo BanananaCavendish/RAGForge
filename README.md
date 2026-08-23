@@ -9,13 +9,13 @@
     <img alt="Embedding" src="https://img.shields.io/badge/Embedding-qwen3.7--text--embedding-purple">
   </p>
   <p align="center">
-    <b>多格式接入</b> · <b>混合检索 + RRF 融合</b> · <b>带引用多轮对话</b> · <b>增量文档管理</b> · <b>评估体系</b>
+    <b>登录鉴权</b> · <b>多用户隔离</b> · <b>混合检索 + RRF</b> · <b>SSE 流式对话</b> · <b>异步文档摄取</b>
   </p>
 </p>
 
 ---
 
-一个**能跑、能量化、讲得清**的 RAG 企业知识助手:上传 PDF / Word / Markdown / HTML 文档,即可用自然语言问答,回答自动标注 `[1][2]` 来源引用,支持多轮对话上下文,并通过黄金问答集量化召回率与回答质量。
+一个**能跑、能量化、讲得清**的 RAG 企业知识助手:注册登录后上传 PDF / Word / Markdown / HTML 文档,即可用自然语言问答,回答自动标注 `[1][2]` 来源引用,支持多轮对话上下文、SSE 流式输出、文档级权限隔离,并通过黄金问答集量化召回率与回答质量。
 
 ## 目录
 
@@ -35,11 +35,16 @@
 
 | 能力 | 说明 | 核心代码 |
 |---|---|---|
+| 🔐 登录鉴权 | scrypt 哈希密码 + JWT,首个注册用户为管理员 | `backend/core/security.py`、`backend/api/auth.py` |
+| 👥 多用户与权限 | 文档级 ACL:语料库全员可见、私有文档仅本人+被分享者、admin 全量 | `backend/db/repositories.py` |
+| 🔑 密钥加密 | `settings.json` 里的 API key 用 Fernet 加密落盘,磁盘无明文 | `backend/core/settings.py` |
 | 📄 多格式接入 | PDF / Word / Markdown / HTML 一键盘入库 | `backend/ingestion/` |
+| ⏳ 异步摄取 | 上传即返回 202 + task_id,后台线程建索引,前端轮询进度 | `backend/api/routes/documents.py` |
 | 🔍 混合检索 | 向量 + BM25 双路召回,手写 **RRF 融合**(只看排名不看分数) | `backend/services/retrieval.py` |
 | 🎯 Cross-Encoder 重排 | 粗召回 top-10 精排到 top-4(可选,`USE_RERANK`) | 同上 |
-| 💬 带引用多轮对话 | 回答标注 `[1][2]` 来源 + LLM 查询改写 + 会话记忆 | `backend/services/rag_service.py` |
-| 📈 增量文档管理 | 内容寻址 `doc_id` 幂等,增/删/替换不重建全量索引 | `backend/services/index_manager.py` |
+| 💬 SSE 流式对话 | 逐 token 输出 + 结束事件,消息持久化到 SQLite(重启不丢) | `backend/api/routes/chat.py` |
+| 🛡️ 限流 | 每用户每分钟对话上限,超限 429 + Retry-After | `backend/services/rate_limit.py` |
+| 🩺 健康检查 | `GET /healthz` 免登录,返回版本/索引/DB 状态(Docker 探活用) | `backend/api/routes/health.py` |
 | 🧪 评估体系 | golden QA + recall@k / MRR / 忠实度 / 引用准确率 | `backend/evaluation/` |
 
 ## 快速开始
@@ -75,7 +80,7 @@ python scripts/generate_corpus.py    # 生成 5 个虚构企业文档(4 种格�
 python scripts/build_index.py        # 分块 → 向量化 → 建 FAISS + BM25 索引
 
 python scripts/demo_chat.py          # 命令行多轮对话
-uvicorn backend.main:app --reload    # Web 界面 → http://127.0.0.1:8000/
+start.bat                            # Web 界面 → http://127.0.0.1:8001/（固定 8001，避免与 RatingGuard 的 8000 冲突）
 ```
 
 ## 使用方法
@@ -83,20 +88,37 @@ uvicorn backend.main:app --reload    # Web 界面 → http://127.0.0.1:8000/
 ### Web 界面
 
 ```bash
-uvicorn backend.main:app --reload
+start.bat              # 推荐：双击运行，固定 8001 端口
+# 或手动指定端口：
+# uvicorn backend.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
-浏览器打开 `http://127.0.0.1:8000/`,支持聊天问答与文档管理。API 文档在 `/docs`(Swagger)。
+浏览器打开 `http://127.0.0.1:8001/`,先用「注册」创建账号(**第一个注册的用户是管理员**,只有管理员能进「设置」页改模型配置 / 重建索引),登录后支持聊天问答与文档管理。API 文档在 `/docs`(Swagger)。
+
+> **端口说明**：`127.0.0.1:8000` 被同机的 RatingGuard 后端占用，RAG 固定使用 `8001`。若 `8001` 也被占用，用 `--port` 换成其他端口即可。
 
 ### REST API
 
+除 `/healthz` 外全部需登录(`Authorization: Bearer <token>`);除 `/api/auth/*` 外均为用户级隔离。
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
+| `POST` | `/api/auth/register` | 注册(首个用户自动成为管理员) |
+| `POST` | `/api/auth/login` | 登录,返回 JWT |
+| `GET` | `/api/auth/me` | 当前用户信息 |
 | `POST` | `/api/chat` | 多轮问答,`{question, session_id}`,返回带来源引用的回答 |
-| `GET` | `/api/documents` | 列出已入库文档 |
-| `POST` | `/api/documents` | 上传文档(增量入库) |
+| `POST` | `/api/chat/stream` | SSE 流式问答:逐 token 输出 + 结束事件 |
+| `GET` / `POST` | `/api/sessions` | 会话列表 / 新建会话 |
+| `GET` | `/api/sessions/{id}/messages` | 会话消息历史 |
+| `DELETE` | `/api/sessions/{id}` | 删除会话 |
+| `GET` | `/api/documents` | 列出当前用户可见文档 |
+| `POST` | `/api/documents` | 上传文档 → `202` + `task_id`(异步摄取) |
+| `GET` | `/api/documents/tasks` | 上传任务进度(admin 见全部,否则见自己的) |
 | `PUT` | `/api/documents/{doc_id}` | 替换文档 |
-| `DELETE` | `/api/documents/{doc_id}` | 删除文档 |
+| `DELETE` | `/api/documents/{doc_id}` | 删除文档(admin / 所有者) |
+| `GET` | `/api/documents/{doc_id}/preview` | 预览文档前 5 个片段 |
+| `GET` | `/api/settings` | 运行时设置(仅 admin,key 已掩码) |
+| `GET` | `/healthz` | 健康检查(免登录) |
 
 ### 命令行脚本
 
@@ -146,17 +168,22 @@ flowchart LR
 .
 ├── backend/
 │   ├── main.py                    # FastAPI 入口:路由 + 静态页挂载
-│   ├── api/                       # 路由(schemas / chat / documents)
-│   ├── core/config.py             # 集中配置(路径 / 模型 / 开关,读 .env)
-│   ├── services/                  # 检索链 / 索引管理 / 会话记忆 / 嵌入 / LLM
+│   ├── api/                       # 路由(schemas / chat / documents / auth / sessions / health)
+│   │   └── deps.py                # get_current_user / get_admin_user 依赖
+│   ├── core/                      # config / settings(密钥加密) / security(scrypt+JWT) / secret
+│   ├── db/                        # SQLite:schema + database(连接管理) + repositories(数据访问)
+│   ├── services/                  # 检索链 / 索引 / 会话存储 / 嵌入 / LLM / 限流
 │   ├── ingestion/                 # 多格式 loader + 中文分块
 │   └── evaluation/                # 指标计算 + LLM-as-judge
-├── frontend/static/               # 单页聊天 + 文档管理界面(原生 JS)
-├── scripts/                       # 语料 / 建库 / demo / 评估
+├── frontend/static/               # 单页:登录 + 聊天 + 文档管理(原生 JS)
+├── scripts/                       # 语料 / 建库 / demo / 评估 / 冒烟
 ├── data/
 │   ├── corpus/                    # 生成的虚构语料(提交)
 │   ├── golden/                    # 手写 golden QA(评估基准)
+│   ├── app.db                     # SQLite 库(用户/会话/文档/ACL,gitignore)
+│   ├── .secret                    # 加密密钥(自动生成,gitignore)
 │   └── chroma/ registry/ eval/    # 派生产物(gitignore)
+├── Dockerfile / docker-compose.yml
 ├── docs/architecture.md           # 架构设计文档
 ├── requirements.txt
 └── .env.example                   # 配置模板
@@ -174,6 +201,8 @@ flowchart LR
 | `DASHSCOPE_API_KEY` | — | 阿里百炼嵌入 key |
 | `RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | 重排模型(本地) |
 | `USE_RERANK` | `0` | 是否启用 cross-encoder 重排 |
+| `SECRET_KEY` | 自动生成到 `data/.secret` | JWT 签名 + API key 加密的主密钥 |
+| `CHAT_RATE_LIMIT_PER_MINUTE` | `30` | 每用户每分钟对话请求上限(超限 429) |
 
 ## 技术栈
 
@@ -181,10 +210,12 @@ flowchart LR
 |---|---|
 | 语言 / 框架 | Python 3.11 · LangChain 1.x · FastAPI |
 | LLM | DeepSeek(OpenAI 兼容接口) |
-| 嵌入 | 阿里百炼 `qwen3.7-text-embedding`(API)/ 本地 `bge-small-zh-v1.5` |
+| 嵌入 | 阿里百炼 `qwen3.7-text-embedding`(API,自动按 20 条/批)/ 本地 `bge-small-zh-v1.5` |
 | 向量库 | FAISS(cosine) |
 | 稀疏检索 | `rank_bm25` + `jieba` 中文分词 |
 | 重排(可选) | `bge-reranker-v2-m3`(cross-encoder) |
+| 持久化 | SQLite(`data/app.db`,WAL)+ Fernet 密钥加密 |
+| 认证 | scrypt 哈希 + pyjwt(JWT HS256) |
 | 前端 | 原生 JS 单页,无构建工具 |
 
 ## 与原始模板的差异
@@ -214,11 +245,16 @@ flowchart LR
 8. **torch 别乱升**——Windows + Anaconda 下 torch 2.13 启动即 `WinError 1114`,固定 `torch==2.6.0`;CPU 环境 `OMP_NUM_THREADS=1` 防多进程内存爆炸。
 9. **Windows 控制台是 GBK**——打印中文/emoji 报 `UnicodeEncodeError`,脚本开头 `sys.stdout.reconfigure(encoding="utf-8")`;管道喂中文还要同步 reconfigure stdin。
 10. **换嵌入必须重建索引**——不同嵌入模型维度/语义空间不同,旧 FAISS 索引作废,先删 `data/chroma data/registry` 再 `build_index.py`。
+11. **DashScope 嵌入单次上限 20 条**——删除文档 / 重建索引会一次传几百个 chunk,超限报 `400 InvalidParameter(batch size > 20)`;`DashScopeEmbedding.embed_documents` 已按 20 条/批自动分批再拼接。FakeEmbeddings 测不出这个,需 mock urlopen 验证请求数(见 `test_embeddings.py`)。
+12. **SQLite 连接别在事务内读新写入**——同一 `with` 块内另开连接读不到未提交的 INSERT(返回 None → 级联 TypeError);写入后要读,先退出事务再开连接(见 `backend/db/database.py::connect`)。
 
 ## 路线图
 
+- [x] **登录鉴权 + 多用户隔离**(Tier 0)——scrypt + JWT + 文档级 ACL + 检索层 pre-filter
+- [x] **异步摄取 / 会话持久化 / SSE 流式 / 限流**(Tier 1)——SQLite + 后台任务 + 流式输出 + 每用户限流
+- [x] **生产部署**(Tier 0)——`/healthz` + Dockerfile + docker-compose + 密钥加密 + 日志轮转
 - [ ] **扩展语料**(3~5 个语义易混淆的干扰文档),制造 recall@k 上升曲线,让消融表有区分度
-- [ ] **启用重排**——本地 reranker 模型在国内镜像下载受限;替代方案是自实现阿里百炼 `text-reranker` API(仿 `DashScopeEmbedding`)
-- [ ] 前端展示来源卡片与 rerank 分数
+- [ ] **启用重排**——自实现阿里百炼 `text-reranker` API(仿 `DashScopeEmbedding`,已完成降级逻辑)
+- [ ] 前端展示 rerank 分数徽章
 
 > 免责声明:所有企业语料为脚本生成的虚构内容,仅供学习演示。

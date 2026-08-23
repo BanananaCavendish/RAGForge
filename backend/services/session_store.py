@@ -1,68 +1,56 @@
-"""会话记忆:内存 dict + 最近 N 条截断。
+"""会话记忆:SQLite 持久化(重启不丢)+ 最近 N 条截断。
 
-刻意不用 RunnableWithMessageHistory:它把记忆注入隐藏进
-config={"configurable": {"session_id": ...}},不利于调试、不利于把
-history 显式传给检索链、也不方便前端展示。这里自己管,可打印可讲清。
+从内存 dict 升级到 SQLite(阶段 D/Tier1 会话持久化):
+- 消息落库 data/app.db,重启后历史仍在,前端可切换会话看历史。
+- 每个会话归属 user_id:同一用户的多轮上下文隔离,互不可见。
 
-若要持久化(重启不丢),把 InMemoryChatMessageHistory 换成
-langchain_community.chat_message_histories.SQLChatMessageHistory 即可。
+接口保持与旧版一致(history_for / append),只是 append 增加 user_id 参数。
 """
 
-import threading
-from collections import OrderedDict
-from datetime import datetime
-
-from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import config
+from backend.db import repositories
 
 
 class SessionStore:
-    """按 session_id 存取多轮对话历史,自动截断到最近 HISTORY_WINDOW 条。"""
+    """SQLite 会话仓库:创建 / 读历史 / 追加 / 列表 / 删除。"""
 
-    def __init__(self, max_sessions: int = 128) -> None:
-        self._histories: OrderedDict[str, InMemoryChatMessageHistory] = OrderedDict()
-        self._max_sessions = max_sessions
-        self._lock = threading.Lock()
+    def create_session(self, user_id: int, title: str = "新会话") -> str:
+        return repositories.create_session(user_id, title=title)
 
-    def history_for(self, session_id: str) -> list:
-        """返回该会话最近 N 条消息(BaseMessage 列表),供检索链使用。"""
-        with self._lock:
-            h = self._histories.get(session_id)
-            if h is None:
-                return []
-            messages = h.messages
-            return messages[-config.HISTORY_WINDOW * 2 :]
+    def history_for(self, session_id: str, user_id: int | None = None) -> list:
+        """返回该会话最近 N 条消息(BaseMessage),供检索链做多轮改写。
 
-    def append(self, session_id: str, user_text: str, ai_text: str) -> None:
-        with self._lock:
-            h = self._histories.get(session_id)
-            if h is None:
-                h = InMemoryChatMessageHistory()
-                self._histories[session_id] = h
-            h.add_user_message(user_text)
-            h.add_ai_message(ai_text)
-            self._histories.move_to_end(session_id)
-            # 简单 LRU:超出的会话整体丢弃
-            while len(self._histories) > self._max_sessions:
-                self._histories.popitem(last=False)
+        user_id 传 None(如 CLI/评估)时不校验归属;传了就强制校验,
+        别人的会话返回空历史,绝不把别人上下文喂给当前用户。
+        """
+        if user_id is not None and not repositories.get_session(session_id, user_id):
+            return []
+        rows = repositories.list_messages(session_id)[-config.HISTORY_WINDOW * 2 :]
+        out = []
+        for r in rows:
+            out.append(
+                HumanMessage(content=r["content"])
+                if r["role"] == "user"
+                else AIMessage(content=r["content"])
+            )
+        return out
 
-    def clear(self, session_id: str) -> None:
-        with self._lock:
-            self._histories.pop(session_id, None)
+    def append(self, session_id: str, user_id: int | None, user_text: str, ai_text: str) -> None:
+        """追加一轮问答到该会话(自动刷新标题与 updated_at)。"""
+        repositories.append_message(session_id, "user", user_text)
+        repositories.append_message(session_id, "assistant", ai_text)
 
-    def list_sessions(self) -> list[dict]:
-        with self._lock:
-            return [
-                {
-                    "session_id": sid,
-                    "messages": len(h.messages),
-                    "updated_at": datetime.now().isoformat(timespec="seconds"),
-                }
-                for sid, h in self._histories.items()
-            ]
+    def list_sessions(self, user_id: int) -> list[dict]:
+        return repositories.list_sessions(user_id)
+
+    def delete_session(self, session_id: str, user_id: int) -> bool:
+        return repositories.delete_session(session_id, user_id)
+
+    def get_session(self, session_id: str, user_id: int) -> dict | None:
+        return repositories.get_session(session_id, user_id)
 
 
-# 全局单例:API 与脚本共用同一个记忆
+# 全局单例:API 与脚本共用同一个存储(内部读写 SQLite)
 store = SessionStore()

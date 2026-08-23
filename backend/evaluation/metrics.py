@@ -45,7 +45,8 @@ class RetrievalScores:
 
     def accumulate(self, retrieved_ids, golden_ids) -> None:
         golden = set(golden_ids)
-        for k in (3, 5, 10):
+        # recall@1 是区分度最高的档位:只有检索真正把正确文档提到首位才得分
+        for k in (1, 3, 5, 10):
             self.recall[k] = self.recall.get(k, 0.0) + recall_at_k(retrieved_ids, golden, k)
         self.mrr += mrr(retrieved_ids, golden)
 
@@ -53,6 +54,7 @@ class RetrievalScores:
         if n == 0:
             return {}
         return {
+            "recall@1": round(self.recall.get(1, 0.0) / n, 4),
             "recall@3": round(self.recall.get(3, 0.0) / n, 4),
             "recall@5": round(self.recall.get(5, 0.0) / n, 4),
             "recall@10": round(self.recall.get(10, 0.0) / n, 4),

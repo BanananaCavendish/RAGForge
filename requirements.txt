@@ -29,6 +29,11 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 python-multipart>=0.0.9   # 文件上传必需
 pydantic>=2.6
+python-dotenv>=1.0        # config.py 加载 .env 必需(bug#3 修复:之前缺失导致 .env 静默不加载)
+
+# ============ 安全(登录鉴权 + 密钥加密) ============
+pyjwt>=2.8                # JWT 签发/校验(登录态)
+cryptography>=42.0        # Fernet 对称加密:settings.json 里的 API Key 落盘加密
 
 # ============ 评估 ============
 # ragas>=0.2  # 可选:进阶替代手写评估 harness

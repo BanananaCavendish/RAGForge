@@ -6,11 +6,26 @@ __pycache__/
 # 密钥
 .env
 
+# 服务器端机密:自动生成,用于 JWT 签名与 API Key 加密(严禁提交)
+data/.secret
+
+# 运行时设置(含 API Key 明文,严禁提交)
+data/settings.json
+
 # 派生产物(可由脚本重建)
 data/chroma/
 data/registry/
 data/sessions/
 data/eval/
+data/faiss/
+data/texts/
+data/uploads/
+
+# SQLite 数据库(用户/会话/消息/文档 ACL/摄取任务)
+data/app.db
+data/app.db-wal
+data/app.db-shm
 
 # 模型缓存
 .cache/huggingface/
+.gstack/

@@ -1,0 +1,16 @@
+# 不进镜像:本地运行时数据与密钥
+data/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+.env.local
+tests/
+docs/
+.github/
+*.md
+start.bat
+.cache/
+.codegraph/

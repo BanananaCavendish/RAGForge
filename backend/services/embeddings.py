@@ -6,8 +6,9 @@
 2. **local**:本地 `BAAI/bge-small-zh-v1.5`(sentence-transformers),离线可跑。
    - BGE 官方推荐查询侧加指令前缀,文档侧不加,本类已实现。
 
-切换:改 `.env` 的 `EMBEDDING_PROVIDER`。换嵌入后必须重建索引
-(`python scripts/build_index.py`,向量空间变了旧索引作废)。
+切换:前端「设置」页改(写 data/settings.json),或改 `.env` 的
+`EMBEDDING_PROVIDER`。换嵌入后必须重建索引(向量空间变了旧索引作废)。
+配置以运行时设置(settings.py)为准,`.env` 只是出厂默认。
 """
 
 import json
@@ -25,7 +26,7 @@ if os.name == "nt":
 
 from langchain_core.embeddings import Embeddings
 
-from backend.core import config
+from backend.core import settings
 
 
 # =====================================================================
@@ -67,7 +68,8 @@ class BgeEmbedding(Embeddings):
 def _get_bge() -> Embeddings:
     global _bge_singleton
     if _bge_singleton is None:
-        _bge_singleton = BgeEmbedding(model_name=config.EMBEDDING_MODEL, device="cpu")
+        emb = settings.load_settings().embedding
+        _bge_singleton = BgeEmbedding(model_name=emb.model, device="cpu")
     return _bge_singleton
 
 
@@ -85,6 +87,10 @@ class DashScopeEmbedding(Embeddings):
     这里自实现,`input` 直接传原文,行为完全可控。
     """
 
+    # DashScope 单次请求最多 20 条输入,超出报 400 InvalidParameter。
+    # 删除文档/重建索引时会一次性传几百个 chunk,必须分批再拼接。
+    _BATCH = 20
+
     def __init__(self, model: str, api_key: str, base_url: str):
         self.model = model
         self.api_key = api_key
@@ -92,7 +98,10 @@ class DashScopeEmbedding(Embeddings):
         self._ctx = ssl.create_default_context()
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        return self._call(texts)
+        vectors: List[List[float]] = []
+        for i in range(0, len(texts), self._BATCH):
+            vectors.extend(self._call(texts[i : i + self._BATCH]))
+        return vectors
 
     def embed_query(self, text: str) -> List[float]:
         return self._call([text])[0]
@@ -124,15 +133,16 @@ def _get_dashscope() -> Embeddings:
     """DashScope OpenAI 兼容嵌入。查询与文档统一编码(API 型无指令前缀)。"""
     global _dashscope_singleton
     if _dashscope_singleton is None:
-        if not config.DASHSCOPE_API_KEY:
+        emb = settings.load_settings().embedding
+        if not emb.api_key:
             raise ValueError(
-                "\n❌ 缺少 DASHSCOPE_API_KEY(EMBEDDING_PROVIDER=api)\n"
-                "   在 .env 填入阿里百炼 API key:https://bailian.console.aliyun.com/\n"
+                "\n❌ 缺少嵌入模型的 API Key(EMBEDDING_PROVIDER=api)\n"
+                "   请在网页「设置」页填入,或写入 .env 的 DASHSCOPE_API_KEY\n"
             )
         _dashscope_singleton = DashScopeEmbedding(
-            model=config.EMBEDDING_MODEL,
-            api_key=config.DASHSCOPE_API_KEY,
-            base_url=config.DASHSCOPE_BASE_URL,
+            model=emb.model,
+            api_key=emb.api_key,
+            base_url=emb.base_url,
         )
     return _dashscope_singleton
 
@@ -145,11 +155,22 @@ _embedding: Embeddings | None = None
 
 
 def get_embedding() -> Embeddings:
-    """模块级单例:按 EMBEDDING_PROVIDER 选择实现,首次调用时构造。"""
+    """模块级单例:按运行时设置(settings.json 覆盖 .env)选择实现,首次调用时构造。"""
     global _embedding
     if _embedding is None:
-        if config.EMBEDDING_PROVIDER == "local":
+        if settings.load_settings().embedding.provider == "local":
             _embedding = _get_bge()
         else:
             _embedding = _get_dashscope()
     return _embedding
+
+
+def invalidate_embedding() -> None:
+    """配置变更后清掉单例,下次 get_embedding() 按新配置重建。
+
+    由 backend.core.settings.invalidate_singletons() 在保存设置后统一调用。
+    """
+    global _embedding, _bge_singleton, _dashscope_singleton
+    _embedding = None
+    _bge_singleton = None
+    _dashscope_singleton = None

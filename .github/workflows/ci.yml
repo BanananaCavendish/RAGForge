@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装运行时依赖
+        run: pip install -r requirements.txt
+
+      - name: 安装测试依赖
+        run: pip install -r requirements-dev.txt
+
+      # 无需真实 API key:所有外部调用(DeepSeek/DashScope/嵌入)在测试里被 mock
+      - name: 运行单元与 API 测试
+        run: pytest -v
+
+      # 静态检查:确保后端可导入(抓 import 期错误)
+      - name: 导入冒烟
+        run: python -c "import backend.main, backend.services.retrieval, backend.services.rag_service, backend.services.reranker, backend.services.embeddings, backend.core.settings, backend.services.connectivity, backend.api.routes.settings, backend.db.repositories, backend.core.security, backend.api.auth, backend.api.deps, backend.api.routes.sessions, backend.api.routes.health, backend.services.rate_limit"

@@ -2,11 +2,18 @@
 
 真相来源(Source of Truth):
   manifest.json   记录了「当前有哪些文档、每个文档多少 chunk」
+  data/texts/     每个文档的 chunk 文本(chunk 才是不可再分的原子,
+                  manifest 只是它的摘要)
 派生索引(Derived):
   FAISS(向量)     用于向量召回
   BM25(内存)      用于关键词召回
 
 任何增删改都收敛到这个单例:API 上传、CLI 管理、建库脚本,全部走它。
+
+为什么要持久化 chunk 文本?
+  上传的文档导入后原始文件即删除,只留 FAISS 里的向量。切换嵌入模型时
+  索引要全部重建,重建只依赖「文本 + 新嵌入」,不依赖原始文件 ——
+  data/texts/ 让重建在任何时候都可行(这是设置页「重建索引」的底座)。
 
 设计说明:
   采用 FAISS 而非 ChromaDB——在 Anaconda Python 3.11 + Windows 环境下,
@@ -24,6 +31,7 @@
 import hashlib
 import json
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -39,14 +47,30 @@ from backend.services.embeddings import get_embedding
 logger = logging.getLogger(__name__)
 
 
+def _locked(fn):
+    """写操作互斥:后台摄取线程与请求线程并发增删索引时避免 FAISS/BM25 竞争。
+
+    用 RLock(可重入):replace_document 内部再调 delete/add 不会死锁。
+    """
+
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return fn(self, *args, **kwargs)
+
+    return wrapper
+
+
 class IndexManager:
     def __init__(self) -> None:
-        self.faiss_path = config.CHROMA_DIR / "faiss_index"  # 复用路径名不变
+        self.faiss_path = config.FAISS_DIR / "faiss_index"
         self.manifest_path = config.MANIFEST_PATH
         self.manifest: dict = self._load_manifest()
         self.all_docs: list[Document] = []
         self.bm25: BM25Okapi | None = None
         self.vectorstore: FAISS | None = None
+        # 后台摄取线程与请求线程可能同时增删索引 → 写操作互斥(RLock 可重入,
+        # 允许 replace_document 内部再调 delete/add 而不死锁)
+        self._lock = threading.RLock()
         self._refresh_from_store()
 
     # ─── 初始化 / 重建 ─────────────────────────────────────────────
@@ -93,10 +117,84 @@ class IndexManager:
             self.faiss_path.parent.mkdir(parents=True, exist_ok=True)
             self.vectorstore.save_local(str(self.faiss_path))
 
+    def _clean_faiss_dir(self) -> None:
+        """删除整个 FAISS 索引目录(知识库清空时调用,避免残留过期索引文件)。"""
+        import shutil
+
+        if self.faiss_path.exists():
+            shutil.rmtree(self.faiss_path.parent, ignore_errors=True)
+
+    # ─── 文本持久化(重建索引的底座)─────────────────────────────
+
+    def _text_path(self, doc_id: str) -> Path:
+        return config.TEXT_DIR / f"{doc_id}.jsonl"
+
+    def _save_texts(self, doc_id: str, chunks: list[Document]) -> None:
+        """把文档的全部 chunk 文本落盘。一行一个 chunk(JSON),供 reindex 重建。"""
+        path = self._text_path(doc_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            for c in chunks:
+                f.write(
+                    json.dumps(
+                        {"page_content": c.page_content, "metadata": c.metadata},
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+
+    def _delete_texts(self, doc_id: str) -> None:
+        self._text_path(doc_id).unlink(missing_ok=True)
+
+    def _load_texts(self) -> list[Document]:
+        """从 data/texts/ 恢复全量 chunk(FAISS 文件丢失/未加载时兜底)。"""
+        out: list[Document] = []
+        for path in sorted(config.TEXT_DIR.glob("*.jsonl")):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                d = json.loads(line)
+                out.append(Document(page_content=d["page_content"], metadata=d["metadata"]))
+        return out
+
+    @_locked
+    def reindex(self, on_progress=None) -> int:
+        """用「当前嵌入配置」重建向量索引(切换嵌入模型后调用)。
+
+        数据源:内存里的 all_docs;为空时回退到 data/texts/ 文本存储。
+        分批编码以便上报进度;成功后覆盖写回 FAISS 并重建 BM25。
+        """
+        embedding = get_embedding()
+        docs = self.all_docs or self._load_texts()
+        if not docs:
+            raise RuntimeError("没有可重建的文档(知识库为空)")
+        self.all_docs = docs
+
+        vectors: list[tuple[str, list[float]]] = []
+        batch_size = 16
+        for i in range(0, len(docs), batch_size):
+            batch = docs[i : i + batch_size]
+            embs = embedding.embed_documents([d.page_content for d in batch])
+            vectors.extend(zip((d.page_content for d in batch), embs))
+            if on_progress:
+                on_progress(min(i + batch_size, len(docs)), len(docs))
+
+        self.vectorstore = FAISS.from_embeddings(
+            text_embeddings=vectors,
+            embedding=embedding,
+            metadatas=[d.metadata for d in docs],
+        )
+        self.rebuild_bm25()
+        self._save_faiss()
+        return len(docs)
+
     # ─── 增删改 ────────────────────────────────────────────────────
 
-    def add_document(self, file_path: str | Path) -> str:
-        """导入单个文档。内容寻址幂等:同一文件重复导入返回同一个 doc_id。"""
+    @_locked
+    def add_document(self, file_path: str | Path, source_name: str | None = None) -> str:
+        """导入单个文档。内容寻址幂等:同一文件重复导入返回同一个 doc_id。
+
+        source_name: 展示用文件名。默认取 file_path 的 basename;
+        上传场景下磁盘名与原始文件名解耦(见 documents.py 的随机落盘名),传原文件名保证 UI 一致。
+        """
         file_path = Path(file_path)
         doc_id = self._content_hash(file_path)
 
@@ -104,7 +202,8 @@ class IndexManager:
             logger.info("跳过重复导入: %s (doc_id=%s)", file_path.name, doc_id)
             return doc_id
 
-        chunks = ingest_document(file_path, doc_id)
+        chunks = ingest_document(file_path, doc_id, source_name=source_name)
+        self._save_texts(doc_id, chunks)  # chunk 文本落盘,重建索引时可脱离原始文件
 
         if self.vectorstore is None:
             # 首次入库:用这批 chunk 创建 FAISS 索引
@@ -117,15 +216,19 @@ class IndexManager:
         self._save_faiss()
 
         self.manifest[doc_id] = {
-            "filename": file_path.name,
+            "filename": source_name or file_path.name,
             "fmt": file_path.suffix.lstrip(".").lower(),
             "num_chunks": len(chunks),
             "added_at": datetime.now().isoformat(timespec="seconds"),
         }
         self._save_manifest()
-        logger.info("已导入: %s (%d chunks, doc_id=%s)", file_path.name, len(chunks), doc_id)
+        logger.info(
+            "已导入: %s (%d chunks, doc_id=%s)",
+            source_name or file_path.name, len(chunks), doc_id,
+        )
         return doc_id
 
+    @_locked
     def delete_document(self, doc_id: str) -> bool:
         """按 doc_id 删除文档及其全部 chunk。
 
@@ -143,9 +246,11 @@ class IndexManager:
             self.vectorstore = FAISS.from_documents(self.all_docs, get_embedding())
         else:
             self.vectorstore = None
+            self._clean_faiss_dir()  # 删空后清掉过期索引,避免磁盘残留误导
 
         self._save_faiss()
         self.manifest.pop(doc_id, None)
+        self._delete_texts(doc_id)
         self._save_manifest()
         logger.info("已删除: doc_id=%s (%d chunks)", doc_id, len(removed))
         return True

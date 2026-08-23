@@ -1,0 +1,40 @@
+# 企业知识助手 RAG · 一键部署
+#
+#   docker compose up -d --build
+#   前端:   http://<服务器IP>:8001/
+#   健康:   curl http://<服务器IP>:8001/healthz
+#
+# 生产要点(务必看):
+#   1. SECRET_KEY 不要用默认值:openssl rand -base64 32
+#   2. 公网部署请再加一层 HTTPS 反代(Caddy/nginx/云负载均衡),见 README「部署」
+#   3. API Key 在「设置」页配置后会加密落盘到 data/settings.json
+
+services:
+  rag:
+    build: .
+    container_name: rag-enterprise
+    ports:
+      - "8001:8001"
+    environment:
+      # 生产必填:JWT 签名 + settings.json 里 API Key 加密共用。
+      # 生成:openssl rand -base64 32。用默认值 = 人人可伪造登录态,严禁上线。
+      SECRET_KEY: ${SECRET_KEY:-please-change-me-in-production}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      # 每用户每分钟可提问次数(成本控制)
+      CHAT_RATE_LIMIT_PER_MINUTE: ${CHAT_RATE_LIMIT_PER_MINUTE:-30}
+    volumes:
+      # 全部运行时数据持久化:SQLite(app.db)/FAISS/文本/设置/上传
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"   # 日志轮转:单文件上限 10MB
+        max-file: "5"     # 最多保留 5 份

@@ -18,32 +18,92 @@
     background: var(--bg); color: var(--text); display: flex; overflow: hidden;
   }
 
+  /* ── 登录页 ─────────────────────────────── */
+  /* display:flex 会覆盖 hidden 属性的 display:none,导致登录成功后
+     登录页仍盖在应用上、页面「不跳转」。必须用 :not([hidden]) 限定。 */
+  #loginView:not([hidden]) {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1e2430 0%, #2f6fed 100%);
+  }
+  .login-card {
+    width: min(380px, 92vw); background: var(--panel); border-radius: 14px;
+    padding: 34px 32px 26px; box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  }
+  .login-card h1 { font-size: 20px; margin-bottom: 4px; }
+  .login-card .sub { font-size: 12px; color: var(--muted); margin-bottom: 22px; }
+  .login-card label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .login-card input {
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none;
+  }
+  .login-card input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .login-card .auth-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+  .login-card .auth-actions button { padding: 11px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit; }
+  #authSubmit { background: var(--accent); color: #fff; }
+  #authToggle { background: none; color: var(--accent); font-size: 13px; }
+  .login-hint { margin-top: 14px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+
+  /* ── 应用主界面(登录后)────────────────────── */
+  /* 用 :not([hidden]) 限定:未隐藏时才 display:flex——若写成 #appView{display:flex}
+     会覆盖 hidden 属性的 display:none,登录前 appView 也会渲染、遮不住。 */
+  #appView:not([hidden]) { display: flex; flex: 1; min-width: 0; }
+
   /* ── 侧边栏 ─────────────────────────────── */
   aside {
     width: 300px; min-width: 300px; background: var(--sidebar); color: var(--sidebar-txt);
     display: flex; flex-direction: column; padding: 18px 16px; overflow-y: auto;
   }
   aside h1 { font-size: 17px; color: #fff; margin-bottom: 2px; }
-  aside .sub { font-size: 12px; color: #8b949e; margin-bottom: 18px; }
+  aside .sub { font-size: 12px; color: #8b949e; margin-bottom: 14px; }
+  .user-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+  .user-bar button { background: rgba(255,255,255,.08); border: none; color: #c9d1d9; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; margin-left: auto; }
+  .user-bar button:hover { background: rgba(255,255,255,.16); }
   aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #8b949e; margin: 14px 0 8px; }
+  #newSessionBtn {
+    width: 100%; padding: 8px; border: 1px dashed rgba(255,255,255,.25); border-radius: 6px;
+    background: none; color: #c9d1d9; cursor: pointer; font-size: 13px; margin-bottom: 6px;
+  }
+  #newSessionBtn:hover { border-color: var(--accent); color: #fff; }
+  .session-item {
+    display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 6px;
+    cursor: pointer; font-size: 13px; margin-bottom: 4px;
+  }
+  .session-item:hover { background: rgba(255,255,255,.06); }
+  .session-item.active { background: rgba(47,111,237,.25); color: #fff; }
+  .session-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .session-item .del { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 12px; }
+  .session-item .del:hover { color: #f85149; }
+  .empty { color: #8b949e; font-size: 12px; padding: 8px 2px; }
+
+  .doc-group-name { font-size: 11px; color: #8b949e; margin: 10px 0 4px; }
   .doc-item {
-    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px;
-    background: rgba(255,255,255,.04); margin-bottom: 6px; font-size: 13px;
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px;
+    background: rgba(255,255,255,.04); margin-bottom: 5px; font-size: 13px;
   }
   .doc-item .fmt { font-family: var(--mono); font-size: 10px; background: rgba(255,255,255,.12); padding: 2px 6px; border-radius: 4px; color: #8b949e; }
-  .doc-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .doc-item button {
-    background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; line-height: 1;
-  }
+  .doc-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .doc-item .name:hover { color: #fff; }
+  .doc-item button { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 13px; line-height: 1; }
   .doc-item button:hover { color: #f85149; }
-  .empty { color: #8b949e; font-size: 12px; padding: 8px 2px; }
   #uploadBtn {
-    margin-top: 14px; padding: 9px; border: 1px dashed rgba(255,255,255,.25); border-radius: 6px;
-    background: none; color: #c9d1d9; cursor: pointer; font-size: 13px;
+    margin-top: 12px; padding: 9px; border: 1px dashed rgba(255,255,255,.25); border-radius: 6px;
+    background: none; color: #c9d1d9; cursor: pointer; font-size: 13px; width: 100%;
   }
   #uploadBtn:hover { border-color: var(--accent); color: #fff; }
   #uploadInput { display: none; }
+  #settingsBtn {
+    margin-top: 12px; padding: 9px; border: 1px dashed rgba(255,255,255,.25); border-radius: 6px;
+    background: none; color: #c9d1d9; cursor: pointer; font-size: 13px; width: 100%;
+  }
+  #settingsBtn:hover { border-color: var(--accent); color: #fff; }
   .tip { margin-top: auto; padding-top: 16px; font-size: 11px; color: #6e7781; line-height: 1.6; }
+
+  /* ── 任务进度 ───────────────────────────── */
+  .task-item { font-size: 12px; color: #8b949e; padding: 3px 0; display: flex; gap: 6px; align-items: center; }
+  .task-item .st { font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+  .st.pending, .st.running { background: #f0c36d33; color: #f0c36d; }
+  .st.done { background: #2da44e33; color: #2da44e; }
+  .st.failed { background: #f8514933; color: #f85149; }
 
   /* ── 主区 ─────────────────────────────── */
   main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -51,12 +111,15 @@
   .msg { max-width: 720px; width: fit-content; border-radius: var(--radius); padding: 14px 16px; line-height: 1.7; font-size: 14.5px; }
   .msg.user { align-self: flex-end; background: var(--user); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
   .msg.assistant { align-self: flex-start; background: var(--assistant); border: 1px solid var(--border); border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
-  .msg.assistant .sources {
-    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
-  }
+  .msg.assistant .stream-content { white-space: pre-wrap; }
+  .msg.assistant .sources { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
   .msg.assistant .sources .src { display: flex; gap: 6px; margin-top: 4px; align-items: baseline; }
   .msg.assistant .sources .src .idx { color: var(--accent); font-family: var(--mono); font-weight: 600; }
   .msg.assistant .sources .src .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg.assistant .sources .src .score {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; margin-left: 4px;
+  }
   .typing { color: var(--muted); font-size: 14px; }
 
   /* ── 输入栏 ───────────────────────────── */
@@ -67,25 +130,107 @@
     font-size: 14.5px; font-family: inherit; outline: none; resize: none; max-height: 120px;
   }
   #input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-  #send {
-    padding: 0 22px; border: none; border-radius: 8px; background: var(--accent); color: #fff;
-    font-size: 14.5px; cursor: pointer; font-family: inherit;
-  }
+  #send { padding: 0 22px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 14.5px; cursor: pointer; font-family: inherit; }
   #send:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── 弹窗(设置 / 预览) ─────────────────── */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(15,20,30,.55); display: flex;
+    align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-mask[hidden] { display: none; }
+  .modal {
+    background: var(--panel); border-radius: 12px; width: min(700px, 92vw); max-height: 88vh;
+    display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .modal-head h2 { font-size: 16px; }
+  .modal-close { background: none; border: none; font-size: 16px; color: var(--muted); cursor: pointer; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; }
+  .modal-foot { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+  .modal-foot .foot-note { font-size: 11px; color: var(--muted); margin-right: auto; }
+
+  .cfg { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+  .cfg h3 { font-size: 13.5px; margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .grid label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .grid input, .grid select {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13.5px; font-family: inherit; background: #fff; color: var(--text);
+  }
+  .grid input:focus, .grid select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .grid .full { grid-column: 1 / -1; }
+  .hint { font-size: 11px; color: var(--muted); }
+  .cfg-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .btn { padding: 8px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff; cursor: pointer; font-size: 13.5px; font-family: inherit; }
+  .btn.ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: #d13438; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .test-result { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .test-result.ok { color: #1a7f37; }
+  .test-result.bad { color: #d13438; }
+
+  .banner { border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.7; }
+  .banner.warn { background: #fff8e6; border: 1px solid #f0c36d; color: #5c3d00; }
+  .rebuild-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .progress { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+
+  .preview-chunk {
+    white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.7;
+    background: #f6f8fa; border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 10px; color: var(--text);
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1e2430;
+    color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 60;
+    box-shadow: 0 6px 20px rgba(0,0,0,.2); max-width: 80vw;
+  }
+  .toast.err { background: #d13438; }
 </style>
 </head>
 <body>
 
+<!-- ═══ 登录 / 注册 ═══ -->
+<div id="loginView">
+  <div class="login-card">
+    <h1>企业知识助手</h1>
+    <div class="sub">登录后使用 · 首个注册用户自动成为管理员</div>
+    <label>用户名<input id="authUser" autocomplete="username" placeholder="2 个字符以上" /></label>
+    <label>密码<input id="authPass" type="password" autocomplete="current-password" placeholder="6 位以上" /></label>
+    <div class="auth-actions">
+      <button id="authSubmit">登 录</button>
+      <button id="authToggle">没有账号？注册一个</button>
+    </div>
+    <div class="login-hint">
+      登录态使用 JWT(默认 7 天有效),密码以 scrypt 加盐哈希存储。<br/>
+      API Key 不在页面回显,仅以掩码形式显示(sk-****abcd)。
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 主应用 ═══ -->
+<div id="appView" hidden>
 <aside>
   <h1>晨光科技 · 企业知识助手</h1>
-  <div class="sub">RAG · 混合检索 · 带引用多轮对话</div>
+  <div class="sub">RAG · 混合检索 · 多轮对话 · 登录鉴权</div>
+  <div class="user-bar"><span id="userInfo"></span><button id="logoutBtn">退出</button></div>
+
+  <h2>会话</h2>
+  <button id="newSessionBtn">＋ 新会话</button>
+  <div id="sessionList"></div>
+
   <h2>知识库文档</h2>
   <div id="docList"><div class="empty">加载中…</div></div>
+  <div id="taskList"></div>
   <button id="uploadBtn">＋ 上传文档(PDF / Word / MD / HTML)</button>
   <input type="file" id="uploadInput" multiple />
+  <button id="settingsBtn" hidden>⚙ 模型设置(管理员)</button>
   <div class="tip">
-    上传/删除文档后索引实时更新(增量,无需全量重建)。<br/>
-    支持 .pdf .docx .md .html .txt
+    上传后后台自动摄取(解析→切分→向量化),无需重建索引。<br/>
+    会话与知识库持久化在服务器,刷新不丢。
   </div>
 </aside>
 
@@ -98,25 +243,276 @@
     </div>
   </div>
 </main>
+</div>
+
+<!-- ═══ 模型设置弹窗(仅管理员) ═══ -->
+<div id="settingsModal" class="modal-mask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>模型设置</h2>
+      <button id="settingsClose" class="modal-close" title="关闭">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div id="reindexBanner" class="banner warn" hidden>
+        <div>⚠️ <b>嵌入模型已变更</b>，需要重建索引后检索才会使用新模型。</div>
+        <div class="rebuild-row">
+          <button id="rebuildBtn" class="btn danger">立即重建索引</button>
+          <span id="rebuildState" class="hint"></span>
+        </div>
+        <div class="progress-wrap" id="rebuildProgressWrap" hidden>
+          <div class="progress"><div id="rebuildProgressBar"></div></div>
+          <span id="rebuildProgressText" class="hint">0%</span>
+        </div>
+      </div>
+
+      <section class="cfg">
+        <h3>🧠 LLM 对话模型</h3>
+        <div class="grid">
+          <label>提供方
+            <select id="llmProvider"></select>
+          </label>
+          <label>模型
+            <input id="llmModel" list="llmModels" />
+            <datalist id="llmModels"></datalist>
+          </label>
+          <label class="full">Base URL
+            <input id="llmBaseUrl" placeholder="https://api.deepseek.com" />
+          </label>
+          <label>API Key
+            <input id="llmApiKey" type="password" autocomplete="new-password" />
+          </label>
+          <label>Temperature
+            <input id="llmTemperature" type="number" min="0" max="2" step="0.1" />
+          </label>
+        </div>
+        <div class="cfg-foot">
+          <button class="btn ghost" data-test="llm">测试连接</button>
+          <span class="test-result" id="llmTestResult"></span>
+        </div>
+      </section>
+
+      <section class="cfg">
+        <h3>🔢 嵌入模型</h3>
+        <div class="grid">
+          <label>提供方
+            <select id="embProvider"></select>
+          </label>
+          <label>模型
+            <input id="embModel" list="embModels" />
+            <datalist id="embModels"></datalist>
+          </label>
+          <label>Base URL(DashScope)
+            <input id="embBaseUrl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+          </label>
+          <label>API Key
+            <input id="embApiKey" type="password" autocomplete="new-password" />
+          </label>
+        </div>
+        <div class="hint">⚠️ 切换嵌入模型会改变向量维度/语义空间，需<b>重建索引</b>后生效。</div>
+        <div class="cfg-foot">
+          <button class="btn ghost" data-test="embedding">测试连接</button>
+          <span class="test-result" id="embeddingTestResult"></span>
+        </div>
+      </section>
+
+      <section class="cfg">
+        <h3>🎯 重排模型(cross-encoder)</h3>
+        <div class="grid">
+          <label class="full" style="flex-direction:row; align-items:center; gap:8px;">
+            <input id="rerankEnabled" type="checkbox" style="width:auto;" />
+            启用重排(把 top-10 候选精排到 top-4，提高答案相关性)
+          </label>
+          <label>提供方
+            <select id="rerankProvider"></select>
+          </label>
+          <label>模型
+            <input id="rerankModel" list="rerankModels" />
+            <datalist id="rerankModels"></datalist>
+          </label>
+          <label>Endpoint(DashScope)
+            <input id="rerankBaseUrl" placeholder="https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank" />
+          </label>
+          <label>API Key
+            <input id="rerankApiKey" type="password" autocomplete="new-password" />
+          </label>
+        </div>
+        <div class="hint">重排 API Key 留空时复用嵌入模型的 Key。</div>
+        <div class="cfg-foot">
+          <button class="btn ghost" data-test="rerank">测试连接</button>
+          <span class="test-result" id="rerankTestResult"></span>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-foot">
+      <span class="foot-note">API Key 保存时加密落盘、页面不回显明文；留空表示保持当前 Key。</span>
+      <button id="settingsCancel" class="btn ghost">取消</button>
+      <button id="settingsSave" class="btn">保存配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 文档预览弹窗 ═══ -->
+<div id="previewModal" class="modal-mask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="previewTitle">文档预览</h2>
+      <button id="previewClose" class="modal-close" title="关闭">✕</button>
+    </div>
+    <div class="modal-body" id="previewBody"></div>
+  </div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const SESSION_KEY = "rag_session_id";
-const sessionId = (() => {
-  let s = localStorage.getItem(SESSION_KEY);
-  if (!s) { s = "web-" + Date.now(); localStorage.setItem(SESSION_KEY, s); }
-  return s;
-})();
 
-const messagesEl = $("messages");
-const inputEl = $("input");
-const sendBtn = $("send");
+// ── 认证状态(局部会话)────────────────────────
+const TOKEN_KEY = "rag_token", USER_KEY = "rag_user";
+const getToken = () => localStorage.getItem(TOKEN_KEY);
+const setAuth = (token, user) => { localStorage.setItem(TOKEN_KEY, token); localStorage.setItem(USER_KEY, JSON.stringify(user)); };
+const clearAuth = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); };
+const getCachedUser = () => { try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch { return null; } };
+
+function authHeaders(extra = {}) {
+  const t = getToken();
+  return t ? { ...extra, Authorization: "Bearer " + t } : extra;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: authHeaders(opts.headers || {}) });
+  const isAuthRoute = path.startsWith("/api/auth/");
+  // 鉴权接口的 401 = 用户名/密码错;普通接口的 401 = 令牌过期,清登录态回登录页
+  if (res.status === 401 && !isAuthRoute) { clearAuth(); showLogin(); throw new Error("登录已过期,请重新登录"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (isAuthRoute && res.status === 401) throw new Error("用户名或密码错误");
+    throw new Error(data.detail || ("HTTP " + res.status));
+  }
+  return data;
+}
+
+function toast(msg, isErr) {
+  const t = document.createElement("div");
+  t.className = "toast" + (isErr ? " err" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
 
 function esc(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
 }
+
+// ── 视图切换 ────────────────────────────────
+function showLogin() { $("loginView").hidden = false; $("appView").hidden = true; }
+function showApp() { $("loginView").hidden = true; $("appView").hidden = false; }
+
+let currentUser = null;
+let currentSessionId = null;
+
+async function init() {
+  if (!getToken()) { showLogin(); return; }
+  try {
+    const me = await api("/api/auth/me");
+    localStorage.setItem(USER_KEY, JSON.stringify(me));
+    enterApp(me);
+  } catch { showLogin(); }
+}
+
+function enterApp(user) {
+  currentUser = user;
+  showApp();
+  $("userInfo").textContent = (user.role === "admin" ? "管理员" : "用户") + " · " + user.username;
+  // 模型设置 / 重建索引仅管理员可见
+  $("settingsBtn").hidden = user.role !== "admin";
+  loadSessions();
+  loadDocs();
+}
+
+$("logoutBtn").onclick = () => { clearAuth(); showLogin(); };
+
+// ── 登录 / 注册 ─────────────────────────────
+let authMode = "login";
+$("authSubmit").onclick = submitAuth;
+$("authToggle").onclick = () => {
+  authMode = authMode === "login" ? "register" : "login";
+  $("authSubmit").textContent = authMode === "login" ? "登 录" : "注 册";
+  $("authToggle").textContent = authMode === "login" ? "没有账号？注册一个" : "已有账号？去登录";
+};
+$("authPass").addEventListener("keydown", (e) => { if (e.key === "Enter") submitAuth(); });
+
+async function submitAuth() {
+  const username = $("authUser").value.trim();
+  const password = $("authPass").value;
+  if (!username || !password) { toast("请输入用户名和密码", true); return; }
+  const path = authMode === "login" ? "/api/auth/login" : "/api/auth/register";
+  try {
+    const data = await api(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    setAuth(data.token, data.user);
+    toast(authMode === "login" ? "登录成功 ✅" : "注册成功,首个用户为管理员 ✅");
+    enterApp(data.user);
+  } catch (e) { toast(e.message, true); }
+}
+
+// ── 会话管理 ────────────────────────────────
+let sessions = [];
+
+async function loadSessions() {
+  sessions = await api("/api/sessions");
+  if (!sessions.length) {
+    sessions = [await api("/api/sessions", { method: "POST" })];
+  }
+  if (!currentSessionId || !sessions.some((s) => s.id === currentSessionId)) {
+    currentSessionId = sessions[0].id;
+  }
+  renderSessions();
+  loadMessages(currentSessionId);
+}
+
+function renderSessions() {
+  const box = $("sessionList");
+  box.innerHTML = "";
+  sessions.forEach((s) => {
+    const item = document.createElement("div");
+    item.className = "session-item" + (s.id === currentSessionId ? " active" : "");
+    item.innerHTML = `<span class="name" title="${esc(s.title)}">${esc(s.title)}</span><button class="del" title="删除会话">✕</button>`;
+    item.onclick = () => switchSession(s.id);
+    item.querySelector(".del").onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!confirm("删除该会话？")) return;
+      await api("/api/sessions/" + s.id, { method: "DELETE" });
+      if (currentSessionId === s.id) { currentSessionId = null; }
+      loadSessions();
+    };
+    box.appendChild(item);
+  });
+}
+
+function switchSession(id) {
+  currentSessionId = id;
+  renderSessions();
+  loadMessages(id);
+}
+
+$("newSessionBtn").onclick = async () => {
+  const created = await api("/api/sessions", { method: "POST" });
+  sessions.unshift(created);
+  currentSessionId = created.id;
+  renderSessions();
+  loadMessages(created.id);
+};
+
+// ── 消息渲染 / 流式输出 ─────────────────────
+const messagesEl = $("messages");
+const inputEl = $("input");
+const sendBtn = $("send");
 
 function addMessage(role, text, sources) {
   const div = document.createElement("div");
@@ -125,85 +521,112 @@ function addMessage(role, text, sources) {
   if (role === "assistant" && sources && sources.length) {
     const box = document.createElement("div");
     box.className = "sources";
-    box.innerHTML = "<div style='font-weight:600;margin-bottom:4px'>📎 引用来源</div>";
-    sources.forEach((s, i) => {
-      const row = document.createElement("div");
-      row.className = "src";
-      const path = s.retrieved_by ? " · " + s.retrieved_by.join("+") : "";
-      row.innerHTML = `<span class="idx">[${i + 1}]</span><span class="file">${esc(s.source)}${path}</span>`;
-      box.appendChild(row);
-    });
+    renderSources(box, sources);
     div.appendChild(box);
   }
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function addTyping() {
-  const div = document.createElement("div");
-  div.className = "msg assistant typing";
-  div.textContent = "正在检索知识库…";
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return div;
 }
 
+function renderSources(box, sources) {
+  box.innerHTML = "<div style='font-weight:600;margin-bottom:4px'>📎 引用来源</div>";
+  sources.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "src";
+    const path = s.retrieved_by ? " · " + s.retrieved_by.join("+") : "";
+    let badges = "";
+    if (s.rrf_score != null) badges += ` <b class="score" title="RRF 融合分数">rrf ${s.rrf_score}</b>`;
+    if (s.rerank_score != null) badges += ` <b class="score" title="重排分数">rerank ${s.rerank_score}</b>`;
+    row.innerHTML = `<span class="idx">[${i + 1}]</span><span class="file">${esc(s.source)}${path}${badges}</span>`;
+    box.appendChild(row);
+  });
+}
+
+async function loadMessages(sessionId) {
+  const data = await api(`/api/sessions/${sessionId}/messages`);
+  messagesEl.innerHTML = "";
+  if (!data.messages.length) {
+    addMessage("assistant", "你好！我是企业知识助手。\n\n可以问我员工手册、差旅报销、云文档使用、安全制度等问题，回答会标注引用来源。\n\n左侧可新建/切换会话，知识库文档可上传与预览。");
+    return;
+  }
+  data.messages.forEach((m) => addMessage(m.role, m.content));
+}
+
+function addStreamingBox() {
+  const wrap = document.createElement("div");
+  wrap.className = "msg assistant";
+  const content = document.createElement("div");
+  content.className = "stream-content";
+  const sources = document.createElement("div");
+  sources.className = "sources";
+  sources.hidden = true;
+  wrap.appendChild(content);
+  wrap.appendChild(sources);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return { content, sources };
+}
+
 async function send() {
   const question = inputEl.value.trim();
   if (!question || sendBtn.disabled) return;
+  if (!currentSessionId) { toast("请先创建会话", true); return; }
   inputEl.value = "";
   inputEl.style.height = "auto";
   addMessage("user", question);
   sendBtn.disabled = true;
-  const typing = addTyping();
+  const box = addStreamingBox();
+  let full = "";
 
   try {
-    const res = await fetch("/api/chat", {
+    const res = await fetch("/api/chat/stream", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, session_id: sessionId }),
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ question, session_id: currentSessionId }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "请求失败");
-    typing.remove();
-    addMessage("assistant", data.answer, data.sources);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ("HTTP " + res.status));
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf("\n\n")) >= 0) {
+        const raw = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const line = raw.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const data = line.slice(6);
+        if (data === "[DONE]") continue;
+        const ev = JSON.parse(data);
+        if (ev.type === "token") { full += ev.text; box.content.textContent = full; }
+        else if (ev.type === "answer") { full = ev.answer; box.content.textContent = full; if (ev.sources?.length) { renderSources(box.sources, ev.sources); box.sources.hidden = false; } }
+        else if (ev.type === "done") { full = ev.answer; box.content.textContent = full; if (ev.sources?.length) { renderSources(box.sources, ev.sources); box.sources.hidden = false; } }
+        else if (ev.type === "error") { throw new Error(ev.message); }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+    // 会话标题/时间可能变化(首条消息定为标题),刷新列表
+    refreshSessionList();
   } catch (err) {
-    typing.remove();
-    addMessage("assistant", "⚠️ 出错了：" + err.message + "\n\n请确认后端已启动、DeepSeek key 已配置。");
+    box.content.textContent = "⚠️ 出错了：" + err.message;
   } finally {
     sendBtn.disabled = false;
     inputEl.focus();
   }
 }
 
-// ── 文档管理 ─────────────────────────────
-async function loadDocs() {
+async function refreshSessionList() {
   try {
-    const res = await fetch("/api/documents");
-    const data = await res.json();
-    renderDocs(data.documents || []);
-  } catch {
-    $("docList").innerHTML = '<div class="empty">后端未连接</div>';
-  }
-}
-
-function renderDocs(docs) {
-  if (!docs.length) { $("docList").innerHTML = '<div class="empty">知识库为空，上传文档开始</div>'; return; }
-  $("docList").innerHTML = "";
-  docs.forEach((d) => {
-    const item = document.createElement("div");
-    item.className = "doc-item";
-    item.innerHTML = `
-      <span class="fmt">${esc(d.fmt)}</span>
-      <span class="name" title="${esc(d.filename)} · ${d.num_chunks} 片段">${esc(d.filename)}</span>
-      <button title="删除 ${esc(d.filename)}">✕</button>`;
-    item.querySelector("button").onclick = async () => {
-      if (!confirm(`删除 ${d.filename} ?`)) return;
-      await fetch(`/api/documents/${d.doc_id}`, { method: "DELETE" });
-      loadDocs();
-    };
-    $("docList").appendChild(item);
-  });
+    sessions = await api("/api/sessions");
+    renderSessions();
+  } catch { /* 列表刷新失败不阻断对话 */ }
 }
 
 $("send").onclick = send;
@@ -215,21 +638,337 @@ inputEl.addEventListener("input", () => {
   inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
 });
 
+// ── 文档管理(分组 / 预览 / 删除 / 上传进度)──
+async function loadDocs() {
+  try {
+    const data = await api("/api/documents");
+    renderDocs(data.documents || []);
+  } catch (e) {
+    $("docList").innerHTML = '<div class="empty">' + esc(e.message) + "</div>";
+  }
+}
+
+function renderDocs(docs) {
+  const box = $("docList");
+  if (!docs.length) { box.innerHTML = '<div class="empty">知识库为空,上传文档开始</div>'; return; }
+  box.innerHTML = "";
+  // 按上传者分组:语料库文档 / 某用户上传 —— 轻量「目录组织」
+  const groups = new Map(); // key -> {label, docs}
+  docs.forEach((d) => {
+    const key = d.owner ? "@" + d.owner : "#corpus";
+    if (!groups.has(key)) groups.set(key, { label: d.owner ? "@ " + d.owner : "📚 知识库语料", docs: [] });
+    groups.get(key).docs.push(d);
+  });
+  groups.forEach((g) => {
+    const title = document.createElement("div");
+    title.className = "doc-group-name";
+    title.textContent = g.label;
+    box.appendChild(title);
+    g.docs.forEach((d) => {
+      const item = document.createElement("div");
+      item.className = "doc-item";
+      const canDelete = currentUser && (currentUser.role === "admin" || d.uploaded_by === currentUser.id);
+      item.innerHTML = `
+        <span class="fmt">${esc(d.fmt)}</span>
+        <span class="name" title="点击预览 ${esc(d.filename)} · ${d.num_chunks} 片段">${esc(d.filename)}</span>
+        <button class="pv" title="预览">👁</button>
+        ${canDelete ? '<button class="rm" title="删除">✕</button>' : ""}`;
+      item.querySelector(".name").onclick = () => previewDoc(d.doc_id);
+      item.querySelector(".pv").onclick = () => previewDoc(d.doc_id);
+      const rm = item.querySelector(".rm");
+      if (rm) rm.onclick = async () => {
+        if (!confirm(`删除 ${d.filename} ?`)) return;
+        try { await api(`/api/documents/${d.doc_id}`, { method: "DELETE" }); toast("已删除"); loadDocs(); }
+        catch (e) { toast(e.message, true); }
+      };
+      box.appendChild(item);
+    });
+  });
+}
+
+// 文档预览(读取 data/texts 的前几个 chunk,不依赖原始文件)
+async function previewDoc(docId) {
+  try {
+    const data = await api(`/api/documents/${docId}/preview`);
+    $("previewTitle").textContent = data.filename;
+    $("previewBody").innerHTML = "";
+    data.chunks.forEach((c) => {
+      const p = document.createElement("pre");
+      p.className = "preview-chunk";
+      p.textContent = `[片段 ${c.index + 1}]\n${c.text}`;
+      $("previewBody").appendChild(p);
+    });
+    $("previewModal").hidden = false;
+  } catch (e) { toast(e.message, true); }
+}
+$("previewClose").onclick = () => $("previewModal").hidden = true;
+$("previewModal").addEventListener("click", (e) => { if (e.target === $("previewModal")) $("previewModal").hidden = true; });
+
+// 上传:批量 → 逐个发请求 → 后台摄取 → 轮询任务进度
+let taskPolling = false;
+
 $("uploadBtn").onclick = () => $("uploadInput").click();
 $("uploadInput").onchange = async (e) => {
   const files = [...e.target.files];
   if (!files.length) return;
+  let ok = 0;
   for (const f of files) {
     const fd = new FormData();
     fd.append("file", f);
-    await fetch("/api/documents", { method: "POST", body: fd });
+    try {
+      await api("/api/documents", { method: "POST", body: fd });
+      ok++;
+    } catch (err) { toast(`上传失败 ${f.name}: ${err.message}`, true); }
   }
   e.target.value = "";
-  loadDocs();
+  if (ok) { toast(`${ok} 个文件已提交摄取,后台处理中…`); pollTasks(); }
+  else loadDocs();
 };
 
-loadDocs();
-addMessage("assistant", "你好！我是晨光科技的企业知识助手。\n\n可以问我员工手册、差旅报销、云文档使用、安全制度等问题，回答会标注引用来源。");
+async function pollTasks() {
+  if (taskPolling) return;
+  taskPolling = true;
+  let busy = true;
+  while (busy) {
+    let tasks = [];
+    try {
+      tasks = (await api("/api/documents/tasks")).tasks;
+    } catch { break; }
+    renderTasks(tasks);
+    busy = tasks.some((t) => t.status === "pending" || t.status === "running");
+    if (busy) await new Promise((r) => setTimeout(r, 1500));
+  }
+  taskPolling = false;
+  loadDocs(); // 摄取完成后刷新文档列表
+  toast("摄取完成 ✅");
+}
+
+function renderTasks(tasks) {
+  const box = $("taskList");
+  box.innerHTML = "";
+  tasks.slice(0, 5).forEach((t) => {
+    const item = document.createElement("div");
+    item.className = "task-item";
+    const label = t.status === "failed" ? (t.error || "失败") : t.filename;
+    item.innerHTML = `<span class="st ${esc(t.status)}">${esc(t.status)}</span><span>${esc(label)}</span>`;
+    box.appendChild(item);
+  });
+}
+
+// ── 模型设置(仅管理员)─────────────────────
+let curSettings = null;
+let rebuildPolling = false;
+const EMB_LABELS = { api: "阿里百炼 (DashScope)", local: "本地 BGE (离线)" };
+const RERANK_LABELS = { api: "阿里百炼 (DashScope)", local: "本地 BGE (离线)" };
+
+$("settingsBtn").onclick = () => { $("settingsModal").hidden = false; loadSettingsForm(); };
+$("settingsClose").onclick = () => $("settingsModal").hidden = true;
+$("settingsCancel").onclick = () => $("settingsModal").hidden = true;
+$("settingsModal").addEventListener("click", (e) => {
+  if (e.target === $("settingsModal")) $("settingsModal").hidden = true;
+});
+$("settingsSave").onclick = saveSettings;
+$("rebuildBtn").onclick = rebuildIndex;
+document.querySelectorAll("[data-test]").forEach((btn) => {
+  btn.onclick = () => testSection(btn.dataset.test);
+});
+
+function fillSelect(sel, labels) {
+  sel.innerHTML = "";
+  Object.entries(labels).forEach(([v, label]) => {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = label;
+    sel.appendChild(o);
+  });
+}
+
+function fillDatalist(id, models) {
+  const dl = $(id);
+  dl.innerHTML = "";
+  (models || []).forEach((m) => {
+    const o = document.createElement("option");
+    o.value = m;
+    dl.appendChild(o);
+  });
+}
+
+function setKeyField(prefix, sec) {
+  const input = $(prefix + "ApiKey");
+  input.value = "";
+  input.placeholder = sec.has_key ? ("已配置 " + sec.api_key + " · 留空保持不变") : "未配置 API Key";
+}
+
+async function loadSettingsForm() {
+  try { curSettings = await api("/api/settings"); }
+  catch (e) { toast("设置加载失败：" + e.message, true); return; }
+  const s = curSettings;
+
+  fillSelect($("llmProvider"), Object.fromEntries(s.options.llm_providers.map((p) => [p.id, p.label])));
+  $("llmProvider").value = s.llm.provider;
+  $("llmModel").value = s.llm.model;
+  $("llmBaseUrl").value = s.llm.base_url;
+  $("llmTemperature").value = s.llm.temperature;
+  setKeyField("llm", s.llm);
+  fillDatalist("llmModels", (s.options.llm_providers.find((p) => p.id === s.llm.provider) || {}).models);
+  onLlmProviderChange();
+
+  fillSelect($("embProvider"), EMB_LABELS);
+  $("embProvider").value = s.embedding.provider;
+  $("embModel").value = s.embedding.model;
+  $("embBaseUrl").value = s.embedding.base_url;
+  setKeyField("emb", s.embedding);
+  fillDatalist("embModels", s.options.embedding_models[s.embedding.provider] || []);
+  onEmbProviderChange();
+
+  $("rerankEnabled").checked = s.rerank.enabled;
+  fillSelect($("rerankProvider"), RERANK_LABELS);
+  $("rerankProvider").value = s.rerank.provider;
+  $("rerankModel").value = s.rerank.model;
+  $("rerankBaseUrl").value = s.rerank.base_url;
+  setKeyField("rerank", s.rerank);
+  fillDatalist("rerankModels", s.options.rerank_models[s.rerank.provider] || []);
+  onRerankProviderChange();
+
+  renderReindexBanner(s);
+}
+
+function onLlmProviderChange() {
+  const p = (curSettings?.options.llm_providers || []).find((x) => x.id === $("llmProvider").value);
+  if (p) {
+    if (p.base_url) $("llmBaseUrl").value = p.base_url;
+    fillDatalist("llmModels", p.models);
+  }
+}
+$("llmProvider").onchange = onLlmProviderChange;
+
+function onEmbProviderChange() {
+  const prov = $("embProvider").value;
+  fillDatalist("embModels", (curSettings?.options.embedding_models[prov] || []));
+  const local = prov === "local";
+  $("embBaseUrl").closest("label").hidden = local;
+  $("embApiKey").closest("label").hidden = local;
+}
+$("embProvider").onchange = onEmbProviderChange;
+
+function onRerankProviderChange() {
+  const prov = $("rerankProvider").value;
+  fillDatalist("rerankModels", (curSettings?.options.rerank_models[prov] || []));
+  const local = prov === "local";
+  $("rerankBaseUrl").closest("label").hidden = local;
+  $("rerankApiKey").closest("label").hidden = local;
+}
+$("rerankProvider").onchange = onRerankProviderChange;
+
+function collectLLM() {
+  const p = {
+    provider: $("llmProvider").value,
+    base_url: $("llmBaseUrl").value.trim(),
+    model: $("llmModel").value.trim(),
+    temperature: parseFloat($("llmTemperature").value) || 0.3,
+  };
+  const key = $("llmApiKey").value.trim();
+  if (key) p.api_key = key;
+  return p;
+}
+function collectEmb() {
+  const p = { provider: $("embProvider").value, base_url: $("embBaseUrl").value.trim(), model: $("embModel").value.trim() };
+  const key = $("embApiKey").value.trim();
+  if (key) p.api_key = key;
+  return p;
+}
+function collectRerank() {
+  const p = { enabled: $("rerankEnabled").checked, provider: $("rerankProvider").value, base_url: $("rerankBaseUrl").value.trim(), model: $("rerankModel").value.trim() };
+  const key = $("rerankApiKey").value.trim();
+  if (key) p.api_key = key;
+  return p;
+}
+
+async function saveSettings() {
+  const body = { llm: collectLLM(), embedding: collectEmb(), rerank: collectRerank() };
+  $("settingsSave").disabled = true;
+  try {
+    curSettings = await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    await loadSettingsForm();
+    toast("配置已保存 ✅");
+  } catch (e) { toast("保存失败：" + e.message, true); }
+  finally { $("settingsSave").disabled = false; }
+}
+
+async function testSection(section) {
+  const el = $(section + "TestResult");
+  el.textContent = "测试中…";
+  el.className = "test-result";
+  const payload = {};
+  if (section === "llm") payload.llm = collectLLM();
+  if (section === "embedding") payload.embedding = collectEmb();
+  if (section === "rerank") payload.rerank = collectRerank();
+  try {
+    const res = await api("/api/settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const r = res[section];
+    const mark = r.ok === null ? "⏸ " : r.ok ? "✅ " : "❌ ";
+    el.textContent = mark + (r.message || "未知结果");
+    el.className = "test-result " + (r.ok ? "ok" : r.ok === null ? "" : "bad");
+  } catch (e) {
+    el.textContent = "❌ 测试失败：" + e.message;
+    el.className = "test-result bad";
+  }
+}
+
+function renderReindexBanner(s) {
+  const banner = $("reindexBanner");
+  if (s.rebuilding) {
+    banner.hidden = false;
+    $("rebuildProgressWrap").hidden = false;
+    $("rebuildProgressBar").style.width = (s.progress || 0) + "%";
+    $("rebuildProgressText").textContent = (s.progress || 0) + "%";
+    $("rebuildBtn").disabled = true;
+    $("rebuildState").textContent = "正在重建…";
+    if (!rebuildPolling) { rebuildPolling = true; pollRebuild(); }
+  } else if (s.needs_reindex) {
+    banner.hidden = false;
+    $("rebuildProgressWrap").hidden = true;
+    $("rebuildBtn").disabled = false;
+    $("rebuildState").textContent = s.last_rebuild_error ? ("上次失败：" + s.last_rebuild_error) : "";
+  } else {
+    banner.hidden = true;
+  }
+}
+
+async function rebuildIndex() {
+  if (!confirm("将用当前嵌入模型重新编码全部文档并重建索引。确认继续？")) return;
+  $("rebuildBtn").disabled = true;
+  try {
+    await api("/api/settings/reindex", { method: "POST" });
+    renderReindexBanner(curSettings);
+  } catch (e) {
+    toast("重建启动失败：" + e.message, true);
+    $("rebuildBtn").disabled = false;
+  }
+}
+
+async function pollRebuild() {
+  if (!rebuildPolling) return;
+  try { curSettings = await api("/api/settings"); }
+  catch { setTimeout(pollRebuild, 1200); return; }
+  renderReindexBanner(curSettings);
+  if (curSettings.rebuilding) setTimeout(pollRebuild, 600);
+  else {
+    rebuildPolling = false;
+    if (curSettings.last_rebuild_error) toast("重建失败：" + curSettings.last_rebuild_error, true);
+    else toast("索引重建完成 ✅");
+    await loadSettingsForm();
+  }
+}
+
+init();
 </script>
 </body>
 </html>

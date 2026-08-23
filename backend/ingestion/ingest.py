@@ -1,7 +1,7 @@
 """单文档接入管线:load → split → 打元数据(doc_id / chunk_index)。
 
-注意:本模块只产出「带好 id 的 chunk 列表」,不直接写 Chroma。
-Chroma 写入与 manifest 维护由 IndexManager 负责,保证所有索引变更
+注意:本模块只产出「带好 id 的 chunk 列表」,不直接写 FAISS。
+FAISS 写入与 manifest 维护由 IndexManager 负责,保证所有索引变更
 收敛到一个入口。
 """
 
@@ -13,12 +13,16 @@ from backend.ingestion.chunker import split_documents
 from backend.ingestion.loaders import load_document
 
 
-def ingest_document(file_path: str | Path, doc_id: str) -> list[Document]:
+def ingest_document(
+    file_path: str | Path, doc_id: str, source_name: str | None = None
+) -> list[Document]:
     """加载单个文档并切块,给每个 chunk 打上 doc_id 与 chunk_index。
 
     Args:
         file_path: 文档路径
         doc_id: 文档内容寻址 id(由 IndexManager 计算)
+        source_name: 展示用文件名。默认取 file_path 的 basename;上传场景
+            磁盘名与原始文件名解耦,传原文件名保证 UI 显示一致。
 
     Returns:
         带完整 metadata 的 chunk 列表;每个 chunk 的 metadata 至少含
@@ -34,7 +38,7 @@ def ingest_document(file_path: str | Path, doc_id: str) -> list[Document]:
             {
                 "doc_id": doc_id,
                 "chunk_index": i,
-                "source": file_path.name,
+                "source": source_name or file_path.name,
                 "fmt": file_path.suffix.lstrip(".").lower(),
             }
         )
