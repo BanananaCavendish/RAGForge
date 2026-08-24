@@ -151,10 +151,11 @@ class StubService:
         session_store.store.append(session_id, user_id, question, "测试回答[1]")
         return {
             "answer": "测试回答[1]",
-            "context": "[1] (来源:test.md, 片段 0)\n内容",
+            "context": "文件 1 (来源:test.md)\n  片段 0: 内容",
             "sources": [
                 {
                     "source": "test.md",
+                    "file_idx": 1,
                     "chunk_index": 0,
                     "doc_id": "abcdef123456",
                     "retrieved_by": ["vector", "bm25"],
@@ -173,10 +174,11 @@ class StubService:
         yield {
             "type": "done",
             "answer": "测试回答[1]",
-            "context": "",
+            "context": "文件 1 (来源:test.md)\n  片段 0: 内容",
             "sources": [
                 {
                     "source": "test.md",
+                    "file_idx": 1,
                     "chunk_index": 0,
                     "doc_id": "abcdef123456",
                     "retrieved_by": ["vector", "bm25"],

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   企业知识助手 —— 前端逻辑(RAGFlow 风格多视图,零构建)
+   RAGForge —— 前端逻辑(RAGFlow 风格多视图,零构建)
    后端 0 改动:17 个 API 端点、SSE 事件格式全部原样。
    区块:utils / state / views / auth / sessions / chat /
         citation / copy / knowledge / settings / confirm / boot
@@ -224,18 +224,40 @@ function addMessage(role, text, sources) {
   return div;
 }
 
+// 把 sources(片段级)按 file_idx 分组,key 即文件编号。
+// 后端每个片段带 file_idx;旧数据缺省时退回按来源文件名去重编号。
+function buildFileGroups(sources) {
+  const groups = new Map();
+  const byName = new Map();
+  sources.forEach((s, i) => {
+    let key = s.file_idx != null ? s.file_idx : null;
+    if (key == null) {
+      if (!byName.has(s.source)) byName.set(s.source, groups.size + 1);
+      key = byName.get(s.source);
+    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  return groups;
+}
+
 function renderSources(box, sources) {
   box.innerHTML = "<div class='sources-title'>📎 引用来源</div>";
-  sources.forEach((s, i) => {
+  for (const [fi, items] of buildFileGroups(sources)) {
+    const first = items[0];
+    const path = first.retrieved_by ? " · " + first.retrieved_by.join("+") : "";
+    const chunks = items.map((s) => s.chunk_index).filter((x) => x != null);
+    const chunkInfo = chunks.length ? ` · 片段 ${chunks.join(",")}` : "";
+    const rrf = Math.max(...items.map((s) => s.rrf_score).filter((x) => x != null), -Infinity);
+    const rerank = Math.max(...items.map((s) => s.rerank_score).filter((x) => x != null), -Infinity);
+    let badges = "";
+    if (Number.isFinite(rrf)) badges += ` <b class="score" title="RRF 融合分数">rrf ${rrf}</b>`;
+    if (Number.isFinite(rerank)) badges += ` <b class="score" title="重排分数">rerank ${rerank}</b>`;
     const row = document.createElement("div");
     row.className = "src";
-    const path = s.retrieved_by ? " · " + s.retrieved_by.join("+") : "";
-    let badges = "";
-    if (s.rrf_score != null) badges += ` <b class="score" title="RRF 融合分数">rrf ${s.rrf_score}</b>`;
-    if (s.rerank_score != null) badges += ` <b class="score" title="重排分数">rerank ${s.rerank_score}</b>`;
-    row.innerHTML = `<span class="idx">[${i + 1}]</span><span class="file">${esc(s.source)}${path}${badges}</span>`;
+    row.innerHTML = `<span class="idx">[${fi}]</span><span class="file">${esc(first.source)}${esc(chunkInfo)}${path}${badges}</span>`;
     box.appendChild(row);
-  });
+  }
 }
 
 // 健壮 SSE 解析:兼容 "data:" / "data: "、多行、坏事件跳过、残块缓冲。
@@ -342,23 +364,26 @@ async function refreshSessionList() {
 }
 
 // ───────── 引用悬浮气泡(RAGFlow [n] popover)────────────────────
+// [n] 现在对应「文件编号」:同一文件的所有片段合并为一个编号。
 function renderCitationMarkers(contentEl, sources) {
   if (!sources || !sources.length) return;
+  const groups = buildFileGroups(sources);
   const text = contentEl.textContent;
   const re = /\[(\d{1,3})\]/g;
   const frag = document.createDocumentFragment();
   let m, last = 0, found = false;
   while ((m = re.exec(text))) {
     const idx = parseInt(m[1], 10);
-    if (idx < 1 || idx > sources.length) continue;
+    const items = groups.get(idx);
+    if (!items) continue;
     found = true;
     frag.appendChild(document.createTextNode(text.slice(last, m.index)));
     const span = document.createElement("span");
     span.className = "cite";
     span.dataset.idx = idx;
     span.textContent = m[0];
-    span.title = sources[idx - 1].source;
-    span.addEventListener("mouseenter", () => showCitation(span, sources[idx - 1], idx));
+    span.title = items[0].source;
+    span.addEventListener("mouseenter", () => showCitation(span, items, idx));
     span.addEventListener("mouseleave", scheduleHideCitation);
     frag.appendChild(span);
     last = m.index + m[0].length;
@@ -369,17 +394,19 @@ function renderCitationMarkers(contentEl, sources) {
   contentEl.appendChild(frag);
 }
 
-function showCitation(span, src, idx) {
+function showCitation(span, group, fileIdx) {
   cancelHideCitation();
   const pop = $("citationPopover");
+  const first = group[0];
   const score =
-    src.rerank_score != null ? `· rerank ${src.rerank_score}`
-    : src.rrf_score != null ? `· rrf ${src.rrf_score}`
+    first.rerank_score != null ? `· rerank ${first.rerank_score}`
+    : first.rrf_score != null ? `· rrf ${first.rrf_score}`
     : "";
-  const excerpt = src.text
-    ? `<div class="pop-excerpt">${esc(src.text.slice(0, 120))}${src.text.length > 120 ? "…" : ""}</div>`
+  const count = group.length > 1 ? ` · ${group.length} 段` : "";
+  const excerpt = first.text
+    ? `<div class="pop-excerpt">${esc(first.text.slice(0, 120))}${first.text.length > 120 ? "…" : ""}</div>`
     : "";
-  pop.innerHTML = `<div class="pop-file">[${idx}] ${esc(src.source)}<span class="pop-score">${esc(score)}</span></div>${excerpt}`;
+  pop.innerHTML = `<div class="pop-file">[${fileIdx}] ${esc(first.source)}<span class="pop-score">${esc(score + count)}</span></div>${excerpt}`;
   pop.hidden = false;
   const rect = span.getBoundingClientRect();
   const pr = pop.getBoundingClientRect();
@@ -851,9 +878,6 @@ function bindEvents() {
   inputEl.addEventListener("input", () => {
     inputEl.style.height = "auto";
     inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
-  });
-  document.querySelectorAll(".chip").forEach((c) => {
-    c.onclick = () => sendQuestion(c.textContent.trim());
   });
 
   // knowledge

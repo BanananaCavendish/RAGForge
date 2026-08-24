@@ -1,6 +1,6 @@
 <p align="center">
-  <h1 align="center">企业知识助手 RAG</h1>
-  <p align="center">基于 LangChain 1.x 的企业级 RAG 知识问答系统</p>
+  <h1 align="center">RAGForge</h1>
+  <p align="center">企业级检索增强问答引擎 · 为答案锻造出处</p>
   <p align="center">
     <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
     <img alt="LangChain" src="https://img.shields.io/badge/LangChain-1.x-1C3C3C?logo=langchain&logoColor=white">
@@ -9,13 +9,15 @@
     <img alt="Embedding" src="https://img.shields.io/badge/Embedding-qwen3.7--text--embedding-purple">
   </p>
   <p align="center">
-    <b>登录鉴权</b> · <b>多用户隔离</b> · <b>混合检索 + RRF</b> · <b>SSE 流式对话</b> · <b>异步文档摄取</b>
+    <b>登录鉴权</b> · <b>多用户隔离</b> · <b>混合检索 + RRF</b> · <b>文件级引用</b> · <b>SSE 流式对话</b> · <b>异步文档摄取</b>
   </p>
 </p>
 
 ---
 
-一个**能跑、能量化、讲得清**的 RAG 企业知识助手:注册登录后上传 PDF / Word / Markdown / HTML 文档,即可用自然语言问答,回答自动标注 `[1][2]` 来源引用,支持多轮对话上下文、SSE 流式输出、文档级权限隔离,并通过黄金问答集量化召回率与回答质量。
+**RAGForge** —— 企业级检索增强问答引擎,为答案锻造出处。
+
+上传 PDF / Word / Markdown / HTML 文档,用自然语言提问,回答自动标注 `[n]` **文件编号来源**——每个文件一个编号,来源面板按文件分组,悬浮即可查看片段摘要。支持多轮对话上下文、SSE 流式输出、文档级权限隔离,并通过黄金问答集量化召回率与回答质量。前端为 **RAGFlow 风格多视图界面**(暗色紫罗兰、零构建、移动端适配)。
 
 ## 目录
 
@@ -46,6 +48,9 @@
 | 🛡️ 限流 | 每用户每分钟对话上限,超限 429 + Retry-After | `backend/services/rate_limit.py` |
 | 🩺 健康检查 | `GET /healthz` 免登录,返回版本/索引/DB 状态(Docker 探活用) | `backend/api/routes/health.py` |
 | 🧪 评估体系 | golden QA + recall@k / MRR / 忠实度 / 引用准确率 | `backend/evaluation/` |
+| 🎨 RAGFlow 风格 UI | 暗色紫罗兰主题、左侧图标导航、对话/知识库双视图、响应式(移动端底部标签栏) | `frontend/static/` |
+| 📎 文件级引用 | 每个文件一个顺序编号 `[n]`,来源面板按文件分组展示,悬浮查看片段摘要 | `backend/services/rag_service.py`、`frontend/static/app.js` |
+| 🖱️ 交互细节 | 引用悬浮气泡、文档状态徽章、拖拽上传、流式光标、一键复制、确认弹窗 | `frontend/static/app.js` |
 
 ## 快速开始
 
@@ -143,12 +148,10 @@ flowchart LR
     E --> F
     F --> G[Cross-Encoder 重排<br/>可选]
     G --> H[LLM 带引用生成]
-    H --> I[回答 + [1][2] 来源]
+    H --> I[回答 + [n] 文件级来源]
 ```
 
-一次问答的数据流:`POST /api/chat` → 取会话历史 → (有历史则 LLM 改写最后一句) → 向量 + BM25 双路召回 → RRF 融合 → (可选)cross-encoder 精排 → LLM 依据上下文带引用生成 → 回写会话记忆。
-
-完整架构与增量更新设计见 [docs/architecture.md](docs/architecture.md)。
+一次问答的数据流:`POST /api/chat` → 取会话历史 → (有历史则 LLM 改写最后一句) → 向量 + BM25 双路召回 → RRF 融合 → (可选)cross-encoder 精排 → 按文件分组编号喂给 LLM → LLM 依据上下文带文件级引用生成 → 回写会话记忆。
 
 ## 评估结果
 
@@ -175,7 +178,7 @@ flowchart LR
 │   ├── services/                  # 检索链 / 索引 / 会话存储 / 嵌入 / LLM / 限流
 │   ├── ingestion/                 # 多格式 loader + 中文分块
 │   └── evaluation/                # 指标计算 + LLM-as-judge
-├── frontend/static/               # 单页:登录 + 聊天 + 文档管理(原生 JS)
+├── frontend/static/               # 三件套 index.html + app.css + app.js:RAGFlow 风格多视图 SPA(暗色紫罗兰 · 左侧导航 · 对话/知识库双视图)
 ├── scripts/                       # 语料 / 建库 / demo / 评估 / 冒烟
 ├── data/
 │   ├── corpus/                    # 生成的虚构语料(提交)
@@ -184,7 +187,6 @@ flowchart LR
 │   ├── .secret                    # 加密密钥(自动生成,gitignore)
 │   └── chroma/ registry/ eval/    # 派生产物(gitignore)
 ├── Dockerfile / docker-compose.yml
-├── docs/architecture.md           # 架构设计文档
 ├── requirements.txt
 └── .env.example                   # 配置模板
 ```
@@ -216,7 +218,7 @@ flowchart LR
 | 重排(可选) | `bge-reranker-v2-m3`(cross-encoder) |
 | 持久化 | SQLite(`data/app.db`,WAL)+ Fernet 密钥加密 |
 | 认证 | scrypt 哈希 + pyjwt(JWT HS256) |
-| 前端 | 原生 JS 单页,无构建工具 |
+| 前端 | 原生 JS 三文件多视图 SPA,零构建;暗色紫罗兰 RAGFlow 风格 |
 
 ## 与原始模板的差异
 
@@ -232,6 +234,8 @@ flowchart LR
 | 增量更新 | 只有全量建库 | 内容寻址 `doc_id` 幂等,增 / 删 / 替换文档不重建全量索引 |
 | 评估体系 | 冒烟测试(验证装配逻辑) | golden QA + recall@k / MRR / 忠实度 / 引用准确率,输出报告 |
 | 接口形态 | 命令行脚本 | FastAPI REST API + Web 聊天界面 |
+| 前端形态 | 命令行 / 简单页面 | RAGFlow 风格产品级多视图 UI(暗色紫罗兰、对话/知识库双视图) |
+| 引用粒度 | 片段级 `[n]`(片段顺序编号) | 文件级 `[n]`(每文件一个编号,来源按文件分组展示) |
 
 ## 踩坑记录
 
@@ -247,6 +251,7 @@ flowchart LR
 10. **换嵌入必须重建索引**——不同嵌入模型维度/语义空间不同,旧 FAISS 索引作废,先删 `data/chroma data/registry` 再 `build_index.py`。
 11. **DashScope 嵌入单次上限 20 条**——删除文档 / 重建索引会一次传几百个 chunk,超限报 `400 InvalidParameter(batch size > 20)`;`DashScopeEmbedding.embed_documents` 已按 20 条/批自动分批再拼接。FakeEmbeddings 测不出这个,需 mock urlopen 验证请求数(见 `test_embeddings.py`)。
 12. **SQLite 连接别在事务内读新写入**——同一 `with` 块内另开连接读不到未提交的 INSERT(返回 None → 级联 TypeError);写入后要读,先退出事务再开连接(见 `backend/db/database.py::connect`)。
+13. **uvicorn `--reload` 双实例会抢 8001 端口**——后台已有一个实例时再双击 start.bat,会出现两个 reloader 同时监听同一端口,改完代码仍可能被旧实例响应。用 `netstat -ano | findstr 8001` 排查,只保留一个实例。
 
 ## 路线图
 
@@ -255,6 +260,7 @@ flowchart LR
 - [x] **生产部署**(Tier 0)——`/healthz` + Dockerfile + docker-compose + 密钥加密 + 日志轮转
 - [ ] **扩展语料**(3~5 个语义易混淆的干扰文档),制造 recall@k 上升曲线,让消融表有区分度
 - [ ] **启用重排**——自实现阿里百炼 `text-reranker` API(仿 `DashScopeEmbedding`,已完成降级逻辑)
-- [ ] 前端展示 rerank 分数徽章
+- [x] 前端展示 rrf / rerank 分数徽章
+- [ ] **模型设置入口放开给普通用户**(只读查看配置,仅 admin 可改 / 重建索引)
 
 > 免责声明:所有企业语料为脚本生成的虚构内容,仅供学习演示。

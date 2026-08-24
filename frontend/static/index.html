@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>企业知识助手</title>
+<title>RAGForge · 企业检索增强问答</title>
 <link rel="stylesheet" href="/app.css?v=1" />
 </head>
 <body>
@@ -12,7 +12,7 @@
 <div id="loginView" class="view">
   <div class="login-brand" aria-hidden="true">✦</div>
   <div class="login-card">
-    <h1>企业知识助手</h1>
+    <h1>RAGForge</h1>
     <div class="sub">登录后使用 · 首个注册用户自动成为管理员</div>
     <label>用户名<input id="authUser" autocomplete="username" placeholder="2 个字符以上" /></label>
     <label>密码<input id="authPass" type="password" autocomplete="current-password" placeholder="6 位以上" /></label>
@@ -63,17 +63,12 @@
         <div id="messages"></div>
         <div id="emptyChatState" hidden>
           <div class="empty-logo" aria-hidden="true">✦</div>
-          <h2>企业知识助手</h2>
-          <p>基于知识库文档的问答，回答自动标注引用来源</p>
-          <div class="chips">
-            <button class="chip">差旅报销需要准备哪些材料？</button>
-            <button class="chip">员工年假天数是怎么规定的？</button>
-            <button class="chip">信息安全有哪些红线要求？</button>
-          </div>
+          <h2>RAGForge</h2>
+          <p>企业级检索增强问答 · 回答自动标注文件来源</p>
         </div>
         <div class="composer">
           <div class="composer-inner">
-            <textarea id="input" rows="1" placeholder="输入问题，例如：出差报销需要准备哪些材料？"></textarea>
+            <textarea id="input" rows="1" placeholder="输入问题"></textarea>
             <button id="send">发送</button>
           </div>
           <div class="composer-hint">回答基于知识库文档生成，Enter 发送 · Shift+Enter 换行</div>

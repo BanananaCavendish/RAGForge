@@ -54,26 +54,43 @@ class RAGService:
         return [d for d in docs if d.metadata.get("doc_id") in allowed_doc_ids]
 
     @staticmethod
-    def _build_context(docs: list) -> str:
-        return "\n\n".join(
-            f"[{i}] (来源:{d.metadata.get('source', '?')}, 片段 {d.metadata.get('chunk_index', '?')})\n{d.page_content}"
-            for i, d in enumerate(docs, 1)
-        )
+    def _build_context_and_sources(docs: list) -> tuple[str, list[dict]]:
+        """按来源文件分组编号,生成 (context, sources)。
 
-    @staticmethod
-    def _build_sources(docs: list) -> list[dict]:
-        return [
-            {
-                "source": d.metadata.get("source"),
-                "chunk_index": d.metadata.get("chunk_index"),
-                "doc_id": d.metadata.get("doc_id"),
-                "retrieved_by": d.metadata.get("retrieved_by"),
-                "rrf_score": d.metadata.get("rrf_score"),
-                "rerank_score": d.metadata.get("rerank_score"),
-                "text": d.page_content[:200],
-            }
-            for d in docs
-        ]
+        每个文件一个顺序编号;同一文件的多个片段合并为一个编号。
+        context 示例:
+          文件 1 (来源:travel_reimbursement.pdf)
+            片段 0: ...
+            片段 2: ...
+          文件 2 (来源:employee_handbook.md)
+            片段 1: ...
+        sources 仍逐片段返回并附 file_idx(所属文件编号),
+        供前端按文件编号展示来源、悬浮时定位到整组片段。
+        """
+        by_source: dict[str, list] = {}
+        for d in docs:
+            by_source.setdefault(d.metadata.get("source", "?"), []).append(d)
+
+        lines: list[str] = []
+        sources: list[dict] = []
+        for fi, (source, items) in enumerate(by_source.items(), 1):
+            lines.append(f"文件 {fi} (来源:{source})")
+            for d in items:
+                lines.append(f"  片段 {d.metadata.get('chunk_index', '?')}: {d.page_content}")
+            for d in items:
+                sources.append(
+                    {
+                        "source": d.metadata.get("source"),
+                        "file_idx": fi,
+                        "chunk_index": d.metadata.get("chunk_index"),
+                        "doc_id": d.metadata.get("doc_id"),
+                        "retrieved_by": d.metadata.get("retrieved_by"),
+                        "rrf_score": d.metadata.get("rrf_score"),
+                        "rerank_score": d.metadata.get("rerank_score"),
+                        "text": d.page_content[:200],
+                    }
+                )
+        return "\n\n".join(lines), sources
 
     def answer(
         self,
@@ -94,7 +111,7 @@ class RAGService:
             session_store.store.append(session_id, user_id, question, result["answer"])
             return result
 
-        context = self._build_context(docs)
+        context, sources = self._build_context_and_sources(docs)
         prompt = QA_SYSTEM_PROMPT.format(context=context)
         response = self.llm.invoke(
             [SystemMessage(content=prompt), HumanMessage(content=question)]
@@ -105,7 +122,7 @@ class RAGService:
         return {
             "answer": answer,
             "context": context,
-            "sources": self._build_sources(docs),
+            "sources": sources,
         }
 
     def answer_stream(
@@ -130,7 +147,7 @@ class RAGService:
             yield {"type": "answer", "answer": answer, "sources": [], "context": ""}
             return
 
-        context = self._build_context(docs)
+        context, sources = self._build_context_and_sources(docs)
         prompt = QA_SYSTEM_PROMPT.format(context=context)
         full = ""
         for chunk in self.llm.stream(
@@ -145,7 +162,7 @@ class RAGService:
             "type": "done",
             "answer": full,
             "context": context,
-            "sources": self._build_sources(docs),
+            "sources": sources,
         }
 
     def list_documents(self) -> list[dict]:
