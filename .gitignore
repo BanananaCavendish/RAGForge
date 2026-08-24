@@ -29,3 +29,6 @@ data/app.db-shm
 # 模型缓存
 .cache/huggingface/
 .gstack/
+
+# 个人面试准备材料(不进仓库)
+docs/
