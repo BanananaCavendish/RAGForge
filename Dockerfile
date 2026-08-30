@@ -24,6 +24,17 @@ RUN pip install --no-cache-dir torch==2.6.0 --index-url https://download.pytorch
 
 COPY . .
 
+# ── 云演示:构建期把「虚构语料 + 本地 BGE 索引」烤进镜像 ────────────
+# 这样云实例一启动就有可检索的知识库,无需部署后再上传/建索引。
+#   1. generate_corpus.py 重新生成 10 份虚构语料(data/corpus 被 .dockerignore 排除)
+#   2. build_index.py 用本地 BGE(bge-small-zh-v1.5)构建 FAISS + BM25 索引
+# 运行时环境变量必须与之保持一致(EMBEDDING_PROVIDER=local / EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5),
+# 否则 embedding_sig 不匹配会触发「需要重建索引」。
+# 说明:data/ 是 docker-compose 的卷挂载点,本地 compose 会用 ./data 覆盖此处的烤入数据,
+# 本地行为不受影响(仍按 README 先跑 build_index.py)。
+RUN python scripts/generate_corpus.py \
+    && EMBEDDING_PROVIDER=local EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5 python scripts/build_index.py
+
 EXPOSE 8001
 
 # 多 worker:JWT/数据库/索引跨进程共享(SQLite 落盘);限流是进程内计数,

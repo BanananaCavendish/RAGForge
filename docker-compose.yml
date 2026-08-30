@@ -6,7 +6,7 @@
 #
 # 生产要点(务必看):
 #   1. SECRET_KEY 不要用默认值:openssl rand -base64 32
-#   2. 公网部署请再加一层 HTTPS 反代(Caddy/nginx/云负载均衡),见 README「部署」
+#   2. 公网部署请再加一层 HTTPS 反代(Caddy/nginx/云负载均衡),见 README「部署到云端」
 #   3. API Key 在「设置」页配置后会加密落盘到 data/settings.json
 
 services:
