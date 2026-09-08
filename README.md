@@ -12,6 +12,7 @@
     <b>登录鉴权</b> · <b>多用户隔离</b> · <b>混合检索 + RRF</b> · <b>文件级引用</b> · <b>SSE 流式对话</b> · <b>异步文档摄取</b>
   </p>
 </p>
+<img width="3194" height="1668" alt="image" src="https://github.com/user-attachments/assets/1d330302-60ff-46ed-a4fa-5757ef9f7ef2" />
 
 ---
 
